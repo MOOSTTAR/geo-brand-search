@@ -97,7 +97,7 @@ async def run_agent(task_id: str, query: str) -> AsyncGenerator[dict[str, Any], 
             continue
 
         msg_type = msg.get("type")
-        if msg_type in ("progress", "result"):
+        if msg_type in ("progress", "result", "ranking"):
             yield {"type": msg_type, "data": msg}
         elif msg_type == "error":
             final_error = msg.get("error", "Agent failed")

@@ -76,6 +76,7 @@ async def execute_task(task_id: str, query: str):
                     task.thinking_text = data.get("thinking_text", "")
                     task.answer_text = data.get("answer_text", "")
                     task.answer_html = data.get("answer_html", "")
+                    task.ranking_table = data.get("ranking_table", "")
                     task.current_step = "done"
                     task.completed_at = datetime.now(timezone.utc).isoformat()
                     task.updated_at = datetime.now(timezone.utc).isoformat()
@@ -91,7 +92,21 @@ async def execute_task(task_id: str, query: str):
                             "thinking_text": task.thinking_text,
                             "answer_text": task.answer_text,
                             "answer_html": task.answer_html,
+                            "ranking_table": task.ranking_table,
                             "completed_at": task.completed_at,
+                        }
+                    })
+
+                elif msg_type == "ranking":
+                    task.ranking_table = data.get("ranking_table", "")
+                    task.updated_at = datetime.now(timezone.utc).isoformat()
+                    await db.commit()
+
+                    await manager.broadcast({
+                        "type": "task_ranking",
+                        "data": {
+                            "task_id": task_id,
+                            "ranking_table": task.ranking_table,
                         }
                     })
 

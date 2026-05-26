@@ -17,6 +17,7 @@ class TaskResponse(BaseModel):
     thinking_text: Optional[str] = None
     answer_text: Optional[str] = None
     answer_html: Optional[str] = None
+    ranking_table: Optional[str] = None
     error_message: Optional[str] = None
     created_at: str
     updated_at: str

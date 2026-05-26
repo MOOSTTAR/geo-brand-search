@@ -6,10 +6,11 @@ interface Props {
   tasks: Task[];
   onViewScreenshot: (taskId: string) => void;
   onViewResponse: (taskId: string) => void;
+  onViewRanking: (taskId: string) => void;
   onDelete: (taskId: string) => void;
 }
 
-export default function TaskList({ tasks, onViewScreenshot, onViewResponse, onDelete }: Props) {
+export default function TaskList({ tasks, onViewScreenshot, onViewResponse, onViewRanking, onDelete }: Props) {
   if (tasks.length === 0) {
     return <EmptyState />;
   }
@@ -25,6 +26,7 @@ export default function TaskList({ tasks, onViewScreenshot, onViewResponse, onDe
           task={task}
           onViewScreenshot={onViewScreenshot}
           onViewResponse={onViewResponse}
+          onViewRanking={onViewRanking}
           onDelete={onDelete}
         />
       ))}

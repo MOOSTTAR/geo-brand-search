@@ -1,15 +1,14 @@
 import asyncio
+import json
 from pathlib import Path
 
+from agent.graph.builder import create_agent_graph
+from agent.graph.state import AgentGraphState
 from agent.harness.tool_registry import ToolRegistry
-from agent.harness.state import AgentStatus, AgentState, StepResult
 from agent.harness.context import AgentContext
 from agent.harness.timeout import TimeoutManager
 from agent.harness.errors import TimeoutExceededError
 from agent.harness.logger import get_logger, log_event
-from agent.planner.templates import create_deepseek_plan
-from agent.planner.executor import PlanExecutor
-from agent.react.loop import ReactLoop
 from agent.tools.browser import BrowserTool
 from agent.tools.navigation import NavigationTool
 from agent.tools.input import InputTool
@@ -22,8 +21,6 @@ logger = get_logger(__name__)
 
 
 def emit(msg: dict):
-    """Write a JSON message to stdout for the backend to consume."""
-    import json
     print(json.dumps(msg, ensure_ascii=False), flush=True)
 
 
@@ -33,7 +30,6 @@ class Runner:
         self.query = query
         self.headless = headless
         self.ctx = AgentContext(task_id=task_id, query=query)
-        self.status = AgentStatus()
         self.timeout_mgr = TimeoutManager(default_timeout=720.0)
 
         self.tool_registry = ToolRegistry()
@@ -48,92 +44,74 @@ class Runner:
 
     async def run(self) -> dict:
         log_event(logger, "runner_start", task_id=self.task_id, query=self.query)
-        self.status.transition(AgentState.PLANNING)
 
-        plan = create_deepseek_plan(self.query)
-        self.status.total_steps = len(plan.steps)
-        log_event(logger, "plan_created", steps=[s.id for s in plan.steps])
+        # ── Input filter harness ──
+        from agent.harness.input_filter import InputFilter
+
+        f = InputFilter()
+        filter_result = f.check(self.query)
+        if not filter_result["valid"]:
+            emit({
+                "type": "error",
+                "status": "failed",
+                "error": filter_result["reason"],
+            })
+            return {"status": "failed", "error": filter_result["reason"]}
+        query = filter_result["sanitized"]
+        self.ctx.query = query
+
+        initial_state: AgentGraphState = {
+            "task_id": self.task_id,
+            "query": query,
+            "headless": self.headless,
+            "progress": 0,
+            "current_step": "start",
+            "screenshot_path": None,
+            "response_text": None,
+            "thinking_text": None,
+            "answer_text": None,
+            "answer_html": None,
+            "error": None,
+        }
 
         try:
             async with self.timeout_mgr.with_timeout(720):
-                self.status.transition(AgentState.EXECUTING)
+                graph = create_agent_graph(self.tool_registry, self.ctx)
+                result = await graph.ainvoke(initial_state)
 
-                browser_tool = self.tool_registry.get_tool("browser")
-                await browser_tool.execute(self.ctx, {"action": "launch", "headless": self.headless})
+                if result.get("error"):
+                    return {"status": "failed", "error": result["error"]}
 
-                react_loop = ReactLoop(self.tool_registry, self.ctx, logger)
-                executor = PlanExecutor(emit)
-
-                for i, step in enumerate(plan.steps):
-                    self.status.current_step_index = i
-                    self.status.progress = int((i / len(plan.steps)) * 100)
-
+                # Run ranking analysis before emitting result
+                ranking_table = ""
+                answer_text = result.get("answer_text", "")
+                if answer_text:
+                    from agent.ranking.runner import RankingRunner
                     emit({
                         "type": "progress",
-                        "step": step.id,
-                        "message": step.description,
-                        "progress": self.status.progress,
+                        "step": "ranking",
+                        "message": "正在分析品牌排名...",
+                        "progress": 97,
                     })
+                    ranking_runner = RankingRunner(answer_text)
+                    ranking_table = await ranking_runner.run()
 
-                    try:
-                        result = await executor.execute_step(step, react_loop)
-                    except TimeoutExceededError:
-                        result = StepResult(
-                            step_id=step.id,
-                            success=False,
-                            description=step.description,
-                            error="Step timed out",
-                        )
-
-                    self.status.record_step(result)
-
-                    if not result.success and not step.allow_failure:
-                        emit({
-                            "type": "error",
-                            "status": "failed",
-                            "error": result.error or "Step failed",
-                            "step": step.id,
-                        })
-                        self.status.transition(AgentState.FAILED)
-                        return {"status": "failed", "error": result.error}
-
-                self.status.progress = 90
-                screenshot_filename = f"{self.task_id}.png"
-
-                # Screenshot already taken — now scroll + expand + extract full text
-                emit({
-                    "type": "progress",
-                    "step": "extract",
-                    "message": "正在提取回复内容...",
-                    "progress": 93,
-                })
-
-                input_tool = self.tool_registry.get_tool("input")
-                extract_result = await input_tool.execute(
-                    self.ctx, {"action": "extract_response"}
-                )
-                response_text = extract_result.get("response_text", "") or ""
-                thinking_text = extract_result.get("thinking_text", "") or ""
-                answer_text = extract_result.get("answer_text", "") or ""
-                answer_html = extract_result.get("answer_html", "") or ""
-
-                self.status.transition(AgentState.COMPLETED)
-                self.status.progress = 100
-
+                # Emit result now that ranking is done
                 emit({
                     "type": "result",
                     "status": "completed",
-                    "screenshot": screenshot_filename,
-                    "response_text": response_text,
-                    "thinking_text": thinking_text,
-                    "answer_text": answer_text,
-                    "answer_html": answer_html,
+                    "screenshot": result.get("screenshot_path", ""),
+                    "response_text": result.get("response_text", ""),
+                    "thinking_text": result.get("thinking_text", ""),
+                    "answer_text": result.get("answer_text", ""),
+                    "answer_html": result.get("answer_html", ""),
+                    "ranking_table": ranking_table,
                 })
+
                 log_event(logger, "runner_completed", task_id=self.task_id)
-                return {"status": "completed", "screenshot": screenshot_filename}
+                return {"status": "completed", "screenshot": result.get("screenshot_path", "")}
 
         except TimeoutExceededError:
-            self.status.transition(AgentState.TIMED_OUT)
             emit({
                 "type": "error",
                 "status": "failed",
@@ -141,7 +119,6 @@ class Runner:
             })
             return {"status": "failed", "error": "Task timed out"}
         except Exception as e:
-            self.status.transition(AgentState.FAILED)
             log_event(logger, "runner_error", task_id=self.task_id, error=str(e))
             emit({
                 "type": "error",

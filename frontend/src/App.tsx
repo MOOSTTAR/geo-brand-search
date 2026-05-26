@@ -8,6 +8,7 @@ import SearchInput from "./components/SearchInput";
 import TaskList from "./components/TaskList";
 import ScreenshotViewer from "./components/ScreenshotViewer";
 import ResponseViewer from "./components/ResponseViewer";
+import RankingViewer from "./components/RankingViewer";
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -17,6 +18,7 @@ export default function App() {
   const [thinkingText, setThinkingText] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState<string | null>(null);
   const [answerHtml, setAnswerHtml] = useState<string | null>(null);
+  const [rankingTable, setRankingTable] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTasks().then(setTasks).catch(console.error);
@@ -63,10 +65,13 @@ export default function App() {
         task.thinking_text = data.thinking_text ?? null;
         task.answer_text = data.answer_text ?? null;
         task.answer_html = data.answer_html ?? null;
+        task.ranking_table = data.ranking_table ?? null;
         task.completed_at = data.completed_at ?? new Date().toISOString();
       } else if (type === "task_failed") {
         task.status = "failed";
         task.error_message = data.error ?? "Unknown error";
+      } else if (type === "task_ranking") {
+        task.ranking_table = data.ranking_table ?? null;
       }
 
       task.updated_at = data.timestamp ?? new Date().toISOString();
@@ -110,6 +115,12 @@ export default function App() {
             setAnswerHtml(task.answer_html ?? null);
           }
         }}
+        onViewRanking={(taskId) => {
+          const task = tasks.find((t) => t.id === taskId);
+          if (task?.ranking_table) {
+            setRankingTable(task.ranking_table);
+          }
+        }}
         onDelete={handleDelete}
       />
       <ScreenshotViewer url={screenshotUrl} onClose={closeScreenshot} />
@@ -119,6 +130,10 @@ export default function App() {
         answerText={answerText}
         answerHtml={answerHtml}
         onClose={() => { setResponseText(null); setThinkingText(null); setAnswerText(null); setAnswerHtml(null); }}
+      />
+      <RankingViewer
+        rankingTable={rankingTable}
+        onClose={() => setRankingTable(null)}
       />
     </Layout>
   );

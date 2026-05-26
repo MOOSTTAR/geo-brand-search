@@ -6,10 +6,11 @@ interface Props {
   task: Task;
   onViewScreenshot: (taskId: string) => void;
   onViewResponse: (taskId: string) => void;
+  onViewRanking: (taskId: string) => void;
   onDelete: (taskId: string) => void;
 }
 
-export default function TaskCard({ task, onViewScreenshot, onViewResponse, onDelete }: Props) {
+export default function TaskCard({ task, onViewScreenshot, onViewResponse, onViewRanking, onDelete }: Props) {
   const timeStr = task.created_at
     ? new Date(task.created_at).toLocaleString("zh-CN")
     : "";
@@ -57,6 +58,11 @@ export default function TaskCard({ task, onViewScreenshot, onViewResponse, onDel
           {task.status === "completed" && task.response_text && (
             <button onClick={() => onViewResponse(task.id)} style={actionBtnStyle("#52c41a")}>
               查看回复
+            </button>
+          )}
+          {task.status === "completed" && task.ranking_table && (
+            <button onClick={() => onViewRanking(task.id)} style={actionBtnStyle("#722ed1")}>
+              查看排名
             </button>
           )}
           {task.status === "completed" && task.screenshot_path && (

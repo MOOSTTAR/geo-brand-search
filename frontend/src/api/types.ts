@@ -9,6 +9,7 @@ export interface Task {
   thinking_text: string | null;
   answer_text: string | null;
   answer_html: string | null;
+  ranking_table: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -20,7 +21,7 @@ export interface TaskCreateRequest {
 }
 
 export interface WsMessage {
-  type: "task_created" | "task_progress" | "task_completed" | "task_failed";
+  type: "task_created" | "task_progress" | "task_completed" | "task_failed" | "task_ranking";
   data: {
     task_id: string;
     status?: string;
@@ -32,6 +33,7 @@ export interface WsMessage {
     thinking_text?: string;
     answer_text?: string;
     answer_html?: string;
+    ranking_table?: string;
     error?: string;
     created_at?: string;
     completed_at?: string;

@@ -22,6 +22,7 @@ class Task(Base):
     thinking_text = Column(Text, nullable=True)
     answer_text = Column(Text, nullable=True)
     answer_html = Column(Text, nullable=True)
+    ranking_table = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(String(30), nullable=False,
                         default=lambda: datetime.now(timezone.utc).isoformat())
