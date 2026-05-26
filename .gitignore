@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Database
+*.db
+
+# Screenshots / data
+backend/data/screenshots/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Logs
+*.log
+
+# Debug dumps (root level)
+/extracted_clean.txt
+/full_response.txt
+/page_dump.txt
+/page_full.txt
+/page_inner.txt
+/page_textc.txt
+/raw_response.json
+
+# Claude
+.claude/
+
+# Browser data
+browser_data/
