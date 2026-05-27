@@ -12,4 +12,5 @@ class AgentGraphState(TypedDict, total=False):
     thinking_text: str | None
     answer_text: str | None
     answer_html: str | None
+    sources_json: str | None
     error: str | None

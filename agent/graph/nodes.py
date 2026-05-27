@@ -177,6 +177,7 @@ def make_extract_node(registry: ToolRegistry, ctx: AgentContext):
             "thinking_text": result.get("thinking_text", ""),
             "answer_text": result.get("answer_text", ""),
             "answer_html": result.get("answer_html", ""),
+            "sources_json": result.get("sources_json", ""),
         }
     return extract_node
 

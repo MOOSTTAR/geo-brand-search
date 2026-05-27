@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import Any
 
 from agent.tools.base import BaseTool
@@ -414,13 +415,16 @@ class InputTool(BaseTool):
 
 
     async def _extract_response(self, ctx: AgentContext) -> dict[str, Any]:
-        """Scroll page, expand panels, then extract thinking + answer separately."""
+        """Scroll page, expand panels, extract thinking + answer + sources."""
         page = ctx.page
         await _scroll_full_page(page)
         await _expand_thinking_panel(page)
         await asyncio.sleep(0.5)
 
         thinking_text, answer_text, answer_html = await _extract_response_parts(page)
+
+        # Extract sources from source panel
+        sources_json = await _extract_sources(page)
 
         # Combine for backwards compatibility
         parts = []
@@ -436,6 +440,7 @@ class InputTool(BaseTool):
             "thinking_text": thinking_text,
             "answer_text": answer_text,
             "answer_html": answer_html,
+            "sources_json": sources_json,
         }
 
 
@@ -585,4 +590,224 @@ async def _extract_response_parts(page) -> tuple[str, str, str]:
 
     except Exception as e:
         logger.warning(f"Failed to extract response parts: {e}")
-        return "", ""
+        return "", "", ""
+
+
+async def _extract_sources(page) -> str:
+    """Click source button, extract source list, close panel, return JSON string."""
+    try:
+        # 1. Count baseline links before clicking (to detect new ones after click)
+        baseline = await page.evaluate(
+            "() => document.querySelectorAll('a[href*=\"http\"]').length"
+        )
+
+        # 2. Find and click source button by text pattern
+        # The source button contains text like "73 个网页" or "N sources"
+        clicked = await page.evaluate("""
+            () => {
+                // Strategy 1: find element whose text matches "N个网页" or "N个来源"
+                const all = document.querySelectorAll('[class]');
+                for (const el of all) {
+                    const text = (el.textContent || '').trim();
+                    const m = text.match(/^(\\d+)\\s*(个网页|个来源|sources?|source)$/i);
+                    if (m && parseInt(m[1]) > 0) {
+                        // Found source button
+                        const rect = el.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0 && rect.width < 300) {
+                            el.click();
+                            return {method: 'text', text: text};
+                        }
+                    }
+                }
+                // Strategy 2: find element with class containing source-related keywords
+                const btns = document.querySelectorAll('[class*="source"], [class*="citation"], [class*="reference"]');
+                for (const el of btns) {
+                    const text = (el.textContent || '').trim();
+                    if (text.length > 0 && text.length < 30) {
+                        el.click();
+                        return {method: 'class', text: text};
+                    }
+                }
+                // Strategy 3: fallback to next sibling (old behavior)
+                const mds = document.querySelectorAll('.ds-markdown.ds-assistant-message-main-content');
+                if (mds.length > 0) {
+                    let sibling = mds[mds.length - 1].nextElementSibling;
+                    for (let i = 0; i < 5 && sibling; i++) {
+                        const text = (sibling.textContent || '').trim();
+                        if (/\\d+\\s*(个网页|个来源|sources?)/i.test(text)) {
+                            sibling.click();
+                            return {method: 'sibling-scan', text: text};
+                        }
+                        sibling = sibling.nextElementSibling;
+                    }
+                    // Last resort: just click the next sibling
+                    const next = mds[mds.length - 1].nextElementSibling;
+                    if (next) {
+                        next.click();
+                        return {method: 'fallback', text: (next.textContent||'').trim().substring(0, 60)};
+                    }
+                }
+                return false;
+            }
+        """)
+        if not clicked:
+            logger.info("No source button found, skipping source extraction")
+            return ""
+
+        # 3. Wait for source panel to open and populate
+        await asyncio.sleep(2.5)
+
+        # 4. Check if new links appeared (source panel opened)
+        after = await page.evaluate(
+            "() => document.querySelectorAll('a[href*=\"http\"]').length"
+        )
+        logger.info(f"Links before={baseline}, after={after}")
+
+        # 5. Extract source items from the opened panel
+        sources = await page.evaluate("""
+            () => {
+                const items = [];
+                const seen = new Set();
+
+                // Find the source panel — it's a right-side drawer
+                // DeepSeek renders it as a scroll-area, typically with class containing "fcd12e6e"
+                // or we can find it by looking for the panel that appeared after clicking
+                let panel = document.querySelector('.fcd12e6e');
+
+                // Fallback: find any right-side panel with many links (>5 external links)
+                if (!panel) {
+                    const candidates = document.querySelectorAll('[class*="drawer"], [class*="panel"], [class*="scroll"], [class*="overlay"], [class*="modal"]');
+                    for (const c of candidates) {
+                        const r = c.getBoundingClientRect();
+                        if (r.width > 200 && r.height > 300 && r.x > window.innerWidth * 0.5) {
+                            const links = c.querySelectorAll('a[href*="http"]');
+                            if (links.length >= 5) {
+                                panel = c;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // If no panel found, fall back to the source button's content
+                let searchRoot = panel || document.body;
+
+                const links = searchRoot.querySelectorAll('a[href*="http"]');
+                for (const a of links) {
+                    const href = a.getAttribute('href') || '';
+                    if (!href || href === '#' || seen.has(href)) continue;
+
+                    const rect = a.getBoundingClientRect();
+                    if (rect.width === 0 || rect.height === 0) continue;
+
+                    // Exclude links inside markdown content (these are citations)
+                    if (a.closest('.ds-markdown')) continue;
+
+                    // If searching whole body, require links to be on the right side
+                    if (!panel && rect.x < window.innerWidth * 0.5) continue;
+
+                    seen.add(href);
+
+                    // Find the card wrapper for this source item
+                    let card = a;
+                    for (let i = 0; i < 6; i++) {
+                        if (!card.parentElement || card.parentElement === searchRoot) break;
+                        const p = card.parentElement;
+                        const pRect = p.getBoundingClientRect();
+                        // Stop when we reach the panel-level container (too many children, too wide)
+                        if (p.children.length > 8 && pRect.width > 300) break;
+                        card = p;
+                    }
+
+                    // Logo: find img element (site icon)
+                    const imgs = card.querySelectorAll('img');
+                    let logo = '';
+                    for (const img of imgs) {
+                        const src = img.getAttribute('src') || '';
+                        if (!src) continue;
+                        const ir = img.getBoundingClientRect();
+                        if (ir.width > 10 && ir.width < 40) { logo = src; break; }
+                    }
+                    if (!logo && imgs.length > 0) {
+                        logo = imgs[0].getAttribute('src') || '';
+                    }
+
+                    const title = (a.textContent || '').trim();
+                    const fullText = (card.textContent || '').trim();
+                    const lines = fullText.split(/\\n+/).map(s => s.trim()).filter(Boolean);
+
+                    let siteName = '', date = '', snippet = '', cite = '';
+                    const dateRe = /\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/;
+
+                    for (const line of lines) {
+                        if (line === title || !line) continue;
+                        if (/^\\d{1,2}$/.test(line) && !cite) { cite = line; continue; }
+                        const dm = line.match(dateRe);
+                        if (dm && !date) { date = dm[0]; continue; }
+                        if (!siteName && line.length < 20 && !line.includes('http') && !dateRe.test(line)) {
+                            siteName = line; continue;
+                        }
+                        if (!snippet && line.length > 15 && !line.includes(title.substring(0, 10))) {
+                            snippet = line;
+                        }
+                    }
+
+                    items.push({
+                        logo: logo,
+                        site_name: siteName,
+                        title: title,
+                        url: href,
+                        date: date,
+                        snippet: snippet.substring(0, 200),
+                        cite: cite,
+                    });
+
+                    if (items.length >= 200) break;
+                }
+
+                return items;
+            }
+        """)
+
+        # 6. Close source panel — click source button again
+        await page.evaluate("""
+            () => {
+                // Find source button by text pattern
+                const all = document.querySelectorAll('[class]');
+                for (const el of all) {
+                    const text = (el.textContent || '').trim();
+                    if (/^\\d+\\s*(个网页|个来源|sources?)$/i.test(text)) {
+                        el.click();
+                        return;
+                    }
+                }
+            }
+        """)
+        await asyncio.sleep(0.5)
+
+        if not sources:
+            logger.info("No source items found in panel")
+            return ""
+
+        logger.info(f"Extracted {len(sources)} source items")
+        return json.dumps(sources, ensure_ascii=False)
+
+    except Exception as e:
+        logger.warning(f"Source extraction failed: {e}")
+        # Try to close panel even on error
+        try:
+            await page.evaluate("""
+                () => {
+                    const all = document.querySelectorAll('[class]');
+                    for (const el of all) {
+                        const text = (el.textContent || '').trim();
+                        if (/^\\d+\\s*(个网页|个来源|sources?)$/i.test(text)) {
+                            el.click();
+                            return;
+                        }
+                    }
+                }
+            """)
+        except Exception:
+            pass
+        return ""

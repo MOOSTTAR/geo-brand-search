@@ -4,16 +4,29 @@ import ProgressBar from "./ProgressBar";
 
 interface Props {
   task: Task;
-  onViewScreenshot: (taskId: string) => void;
-  onViewResponse: (taskId: string) => void;
-  onViewRanking: (taskId: string) => void;
+  onViewDetail: (taskId: string) => void;
   onDelete: (taskId: string) => void;
 }
 
-export default function TaskCard({ task, onViewScreenshot, onViewResponse, onViewRanking, onDelete }: Props) {
+function calcDuration(created: string, completed: string | null): string {
+  if (!completed) return "";
+  const ms = new Date(completed).getTime() - new Date(created).getTime();
+  if (ms < 0) return "";
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}秒`;
+  const m = Math.floor(s / 60);
+  const remainS = s % 60;
+  if (m < 60) return `${m}分${remainS}秒`;
+  const h = Math.floor(m / 60);
+  const remainM = m % 60;
+  return `${h}时${remainM}分${remainS}秒`;
+}
+
+export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
   const timeStr = task.created_at
     ? new Date(task.created_at).toLocaleString("zh-CN")
     : "";
+  const duration = calcDuration(task.created_at, task.completed_at);
 
   return (
     <div
@@ -29,8 +42,24 @@ export default function TaskCard({ task, onViewScreenshot, onViewResponse, onVie
       onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ fontWeight: 500, fontSize: 14, flex: 1, marginRight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {task.query}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginRight: 12, overflow: "hidden" }}>
+          <span style={{ fontWeight: 500, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {task.query}
+          </span>
+          {task.brand_keyword && (
+            <span style={{
+              fontSize: 12,
+              color: "#1677ff",
+              backgroundColor: "#e6f4ff",
+              border: "1px solid #91caff",
+              borderRadius: 4,
+              padding: "1px 8px",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}>
+              品牌: {task.brand_keyword}
+            </span>
+          )}
         </div>
         <StatusBadge status={task.status} />
       </div>
@@ -53,21 +82,18 @@ export default function TaskCard({ task, onViewScreenshot, onViewResponse, onVie
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 12, color: "#bbb" }}>{timeStr}</span>
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#bbb" }}>{timeStr}</span>
+          {duration && (
+            <span style={{ fontSize: 12, color: "#8c8c8c" }}>
+              用时: {duration}
+            </span>
+          )}
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {task.status === "completed" && task.response_text && (
-            <button onClick={() => onViewResponse(task.id)} style={actionBtnStyle("#52c41a")}>
-              查看回复
-            </button>
-          )}
-          {task.status === "completed" && task.ranking_table && (
-            <button onClick={() => onViewRanking(task.id)} style={actionBtnStyle("#722ed1")}>
-              查看排名
-            </button>
-          )}
-          {task.status === "completed" && task.screenshot_path && (
-            <button onClick={() => onViewScreenshot(task.id)} style={actionBtnStyle("#1890ff")}>
-              查看截图
+          {task.status === "completed" && (
+            <button onClick={() => onViewDetail(task.id)} style={actionBtnStyle("#722ed1")}>
+              查看详情
             </button>
           )}
           <button onClick={() => onDelete(task.id)} style={actionBtnStyle("#ff4d4f")}>

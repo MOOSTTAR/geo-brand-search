@@ -4,13 +4,11 @@ import EmptyState from "./EmptyState";
 
 interface Props {
   tasks: Task[];
-  onViewScreenshot: (taskId: string) => void;
-  onViewResponse: (taskId: string) => void;
-  onViewRanking: (taskId: string) => void;
+  onViewDetail: (taskId: string) => void;
   onDelete: (taskId: string) => void;
 }
 
-export default function TaskList({ tasks, onViewScreenshot, onViewResponse, onViewRanking, onDelete }: Props) {
+export default function TaskList({ tasks, onViewDetail, onDelete }: Props) {
   if (tasks.length === 0) {
     return <EmptyState />;
   }
@@ -24,9 +22,7 @@ export default function TaskList({ tasks, onViewScreenshot, onViewResponse, onVi
         <TaskCard
           key={task.id}
           task={task}
-          onViewScreenshot={onViewScreenshot}
-          onViewResponse={onViewResponse}
-          onViewRanking={onViewRanking}
+          onViewDetail={onViewDetail}
           onDelete={onDelete}
         />
       ))}

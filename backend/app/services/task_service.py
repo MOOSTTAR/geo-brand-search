@@ -10,7 +10,7 @@ from app.api.ws import manager
 from app.services.agent_bridge import run_agent
 
 
-async def execute_task(task_id: str, query: str):
+async def execute_task(task_id: str, query: str, brand_keyword: str | None = None):
     """Execute a task by running the agent and updating state."""
     async with async_session() as db:
         result = await db.execute(select(Task).where(Task.id == task_id))
@@ -35,7 +35,7 @@ async def execute_task(task_id: str, query: str):
         })
 
     try:
-        async for msg in run_agent(task_id, query):
+        async for msg in run_agent(task_id, query, brand_keyword=brand_keyword):
             msg_type = msg["type"]
             data = msg["data"]
 
@@ -76,7 +76,9 @@ async def execute_task(task_id: str, query: str):
                     task.thinking_text = data.get("thinking_text", "")
                     task.answer_text = data.get("answer_text", "")
                     task.answer_html = data.get("answer_html", "")
+                    task.sources_json = data.get("sources_json", "")
                     task.ranking_table = data.get("ranking_table", "")
+                    task.brand_rank = data.get("brand_rank", "")
                     task.current_step = "done"
                     task.completed_at = datetime.now(timezone.utc).isoformat()
                     task.updated_at = datetime.now(timezone.utc).isoformat()
@@ -92,7 +94,10 @@ async def execute_task(task_id: str, query: str):
                             "thinking_text": task.thinking_text,
                             "answer_text": task.answer_text,
                             "answer_html": task.answer_html,
+                            "sources_json": task.sources_json,
                             "ranking_table": task.ranking_table,
+                            "brand_keyword": task.brand_keyword,
+                            "brand_rank": task.brand_rank,
                             "completed_at": task.completed_at,
                         }
                     })

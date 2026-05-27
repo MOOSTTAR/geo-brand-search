@@ -6,6 +6,7 @@ import { useScreenshot } from "./hooks/useScreenshot";
 import Layout from "./components/Layout";
 import SearchInput from "./components/SearchInput";
 import TaskList from "./components/TaskList";
+import TaskDetail from "./components/TaskDetail";
 import ScreenshotViewer from "./components/ScreenshotViewer";
 import ResponseViewer from "./components/ResponseViewer";
 import RankingViewer from "./components/RankingViewer";
@@ -13,6 +14,7 @@ import RankingViewer from "./components/RankingViewer";
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const { screenshotUrl, openScreenshot, closeScreenshot } = useScreenshot();
   const [responseText, setResponseText] = useState<string | null>(null);
   const [thinkingText, setThinkingText] = useState<string | null>(null);
@@ -40,6 +42,14 @@ export default function App() {
           progress: 0,
           current_step: null,
           screenshot_path: null,
+          response_text: null,
+          thinking_text: null,
+          answer_text: null,
+          answer_html: null,
+          ranking_table: null,
+          brand_keyword: data.brand_keyword ?? null,
+          brand_rank: null,
+          sources_json: null,
           error_message: null,
           created_at: data.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -66,6 +76,9 @@ export default function App() {
         task.answer_text = data.answer_text ?? null;
         task.answer_html = data.answer_html ?? null;
         task.ranking_table = data.ranking_table ?? null;
+        task.brand_keyword = data.brand_keyword ?? null;
+        task.brand_rank = data.brand_rank ?? null;
+        task.sources_json = data.sources_json ?? null;
         task.completed_at = data.completed_at ?? new Date().toISOString();
       } else if (type === "task_failed") {
         task.status = "failed";
@@ -82,10 +95,10 @@ export default function App() {
 
   const { isConnected } = useWebSocket(handleWsMessage);
 
-  const handleSubmit = useCallback(async (query: string) => {
+  const handleSubmit = useCallback(async (query: string, brandKeyword: string) => {
     setSubmitting(true);
     try {
-      await createTask(query);
+      await createTask(query, brandKeyword || undefined);
     } finally {
       setSubmitting(false);
     }
@@ -95,34 +108,51 @@ export default function App() {
     try {
       await deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      if (detailTaskId === taskId) setDetailTaskId(null);
     } catch (err) {
       console.error("Delete failed:", err);
     }
-  }, []);
+  }, [detailTaskId]);
+
+  const detailTask = detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? null : null;
+
+  const handleViewResponse = useCallback((taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task?.response_text) {
+      setResponseText(task.response_text);
+      setThinkingText(task.thinking_text ?? null);
+      setAnswerText(task.answer_text ?? null);
+      setAnswerHtml(task.answer_html ?? null);
+    }
+  }, [tasks]);
+
+  const handleViewRanking = useCallback((taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task?.ranking_table) {
+      setRankingTable(task.ranking_table);
+    }
+  }, [tasks]);
 
   return (
     <Layout wsConnected={isConnected}>
-      <SearchInput onSubmit={handleSubmit} disabled={submitting} />
-      <TaskList
-        tasks={tasks}
-        onViewScreenshot={openScreenshot}
-        onViewResponse={(taskId) => {
-          const task = tasks.find((t) => t.id === taskId);
-          if (task?.response_text) {
-            setResponseText(task.response_text);
-            setThinkingText(task.thinking_text ?? null);
-            setAnswerText(task.answer_text ?? null);
-            setAnswerHtml(task.answer_html ?? null);
-          }
-        }}
-        onViewRanking={(taskId) => {
-          const task = tasks.find((t) => t.id === taskId);
-          if (task?.ranking_table) {
-            setRankingTable(task.ranking_table);
-          }
-        }}
-        onDelete={handleDelete}
-      />
+      {detailTask ? (
+        <TaskDetail
+          task={detailTask}
+          onViewScreenshot={openScreenshot}
+          onViewResponse={handleViewResponse}
+          onViewRanking={handleViewRanking}
+          onBack={() => setDetailTaskId(null)}
+        />
+      ) : (
+        <>
+          <SearchInput onSubmit={handleSubmit} disabled={submitting} />
+          <TaskList
+            tasks={tasks}
+            onViewDetail={setDetailTaskId}
+            onDelete={handleDelete}
+          />
+        </>
+      )}
       <ScreenshotViewer url={screenshotUrl} onClose={closeScreenshot} />
       <ResponseViewer
         text={responseText}

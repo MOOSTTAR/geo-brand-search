@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 @router.post("", response_model=TaskResponse, status_code=201)
 async def create_task(req: TaskCreateRequest, db: AsyncSession = Depends(get_db)):
-    task = Task(query=req.query, status="creating", progress=0)
+    task = Task(query=req.query, status="creating", progress=0, brand_keyword=req.brand_keyword)
     db.add(task)
     await db.commit()
     await db.refresh(task)
@@ -27,12 +27,13 @@ async def create_task(req: TaskCreateRequest, db: AsyncSession = Depends(get_db)
         "data": {
             "task_id": task.id,
             "query": task.query,
+            "brand_keyword": task.brand_keyword,
             "status": task.status,
             "created_at": task.created_at,
         }
     })
 
-    asyncio.create_task(execute_task(task.id, req.query))
+    asyncio.create_task(execute_task(task.id, req.query, brand_keyword=req.brand_keyword))
 
     return TaskResponse.model_validate(task)
 

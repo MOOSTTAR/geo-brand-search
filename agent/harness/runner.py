@@ -25,10 +25,11 @@ def emit(msg: dict):
 
 
 class Runner:
-    def __init__(self, task_id: str, query: str, headless: bool = False):
+    def __init__(self, task_id: str, query: str, headless: bool = False, brand_keyword: str | None = None):
         self.task_id = task_id
         self.query = query
         self.headless = headless
+        self.brand_keyword = brand_keyword
         self.ctx = AgentContext(task_id=task_id, query=query)
         self.timeout_mgr = TimeoutManager(default_timeout=720.0)
 
@@ -84,6 +85,7 @@ class Runner:
 
                 # Run ranking analysis before emitting result
                 ranking_table = ""
+                brand_rank = ""
                 answer_text = result.get("answer_text", "")
                 if answer_text:
                     from agent.ranking.runner import RankingRunner
@@ -93,8 +95,10 @@ class Runner:
                         "message": "正在分析品牌排名...",
                         "progress": 97,
                     })
-                    ranking_runner = RankingRunner(answer_text)
+                    ranking_runner = RankingRunner(answer_text, brand_keyword=self.brand_keyword)
                     ranking_table = await ranking_runner.run()
+                    if self.brand_keyword:
+                        brand_rank = await ranking_runner.find_brand_rank()
 
                 # Emit result now that ranking is done
                 emit({
@@ -105,7 +109,9 @@ class Runner:
                     "thinking_text": result.get("thinking_text", ""),
                     "answer_text": result.get("answer_text", ""),
                     "answer_html": result.get("answer_html", ""),
+                    "sources_json": result.get("sources_json", ""),
                     "ranking_table": ranking_table,
+                    "brand_rank": brand_rank,
                 })
 
                 log_event(logger, "runner_completed", task_id=self.task_id)
