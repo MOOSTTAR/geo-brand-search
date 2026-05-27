@@ -732,25 +732,62 @@ async def _extract_sources(page) -> str:
                         logo = imgs[0].getAttribute('src') || '';
                     }
 
-                    const title = (a.textContent || '').trim();
-                    const fullText = (card.textContent || '').trim();
-                    const lines = fullText.split(/\\n+/).map(s => s.trim()).filter(Boolean);
+                    const rawText = (a.textContent || '').trim();
 
-                    let siteName = '', date = '', snippet = '', cite = '';
-                    const dateRe = /\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/;
+                    // DeepSeek concatenates: [site_name][date][cite_number][title+snippet]
+                    // Parse with regex: non-greedy prefix, date YYYY/MM/DD or YYYY-MM-DD, optional cite number, rest
+                    const parseRe = /^(.+?)(\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})(\\d{1,2})?(.+)$/;
+                    const pm = rawText.match(parseRe);
 
-                    for (const line of lines) {
-                        if (line === title || !line) continue;
-                        if (/^\\d{1,2}$/.test(line) && !cite) { cite = line; continue; }
-                        const dm = line.match(dateRe);
-                        if (dm && !date) { date = dm[0]; continue; }
-                        if (!siteName && line.length < 20 && !line.includes('http') && !dateRe.test(line)) {
-                            siteName = line; continue;
-                        }
-                        if (!snippet && line.length > 15 && !line.includes(title.substring(0, 10))) {
-                            snippet = line;
+                    let siteName = '', date = '', cite = '', title = '', snippet = '';
+
+                    if (pm) {
+                        siteName = pm[1].trim();
+                        date = pm[2];
+                        cite = (pm[3] || '').trim();
+                        title = (pm[4] || '').trim();
+                    } else {
+                        // Fallback: try to extract date anywhere in text
+                        const dm = rawText.match(/\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/);
+                        if (dm) {
+                            date = dm[0];
+                            const di = rawText.indexOf(date);
+                            siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
+                            const after = rawText.substring(di + date.length);
+                            const cm = after.match(/^(\\d{1,2})\\s*/);
+                            if (cm) {
+                                cite = cm[1];
+                                title = after.substring(cm[0].length).trim();
+                            } else {
+                                title = after.trim();
+                            }
+                        } else {
+                            title = rawText;
                         }
                     }
+
+                    // Clean site name: remove leading cite number if still present
+                    siteName = siteName.replace(/^\\d{1,2}\\s*/, '').trim();
+                    // If site name is too long, it's part of the title
+                    if (siteName.length > 30) {
+                        title = siteName + ' ' + title;
+                        siteName = '';
+                    }
+
+                    // Get snippet from card text beyond what's in the link
+                    const cardText = (card.textContent || '').trim();
+                    if (cardText !== rawText && cardText.length > rawText.length) {
+                        snippet = cardText.substring(cardText.indexOf(rawText) + rawText.length).trim();
+                    }
+                    // If title itself is very long, split title / snippet
+                    if (!snippet && title.length > 80) {
+                        const breakPt = title.indexOf('。');
+                        if (breakPt > 15) {
+                            snippet = title.substring(breakPt + 1).trim();
+                            title = title.substring(0, breakPt + 1).trim();
+                        }
+                    }
+                    snippet = snippet.substring(0, 200);
 
                     items.push({
                         logo: logo,
@@ -758,7 +795,7 @@ async def _extract_sources(page) -> str:
                         title: title,
                         url: href,
                         date: date,
-                        snippet: snippet.substring(0, 200),
+                        snippet: snippet,
                         cite: cite,
                     });
 
