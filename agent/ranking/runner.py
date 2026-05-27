@@ -79,7 +79,8 @@ class RankingRunner:
                 err = validate_ranking(json_data)
                 if not err:
                     self._rankings_json = json_data
-                    return rankings_to_markdown(json_data)
+                    table = rankings_to_markdown(json_data)
+                    return "## 综合排名\n\n" + table if table else ""
                 self._last_error = err
             else:
                 self._last_error = f"Unable to parse JSON, got: {raw[:200]}..."
@@ -97,14 +98,96 @@ class RankingRunner:
                 err = validate_ranking(json_data)
                 if not err:
                     self._rankings_json = json_data
-                    return rankings_to_markdown(json_data)
+                    table = rankings_to_markdown(json_data)
+                    return "## 综合排名\n\n" + table if table else ""
 
         logger.error("Ranking analysis failed after all retries")
         return ""
 
-    async def find_brand_rank(self) -> str:
-        """Find the rank of the specified brand in rankings via AI with harness retry."""
-        if not self.brand_keyword or not self._rankings_json:
+    def run_mention_order(self) -> str:
+        """Generate mention-order ranking from answer_text, sorted by first appearance."""
+        if not self._rankings_json or not self.answer_text:
+            return ""
+
+        rankings = self._rankings_json.get("rankings", [])
+        if not rankings:
+            return ""
+
+        text_lower = self.answer_text.lower()
+        brand_positions: list[tuple[str, int, str]] = []
+        self._mention_order: dict[str, tuple[int, str]] = {}
+
+        for item in rankings:
+            brand = item.get("brand", "")
+            if not brand:
+                continue
+            pos = text_lower.find(brand.lower())
+            if pos >= 0:
+                start = max(0, pos - 20)
+                end = min(len(self.answer_text), pos + len(brand) + 20)
+                snippet = self.answer_text[start:end].replace("\n", " ").strip()
+                if start > 0:
+                    snippet = "..." + snippet
+                if end < len(self.answer_text):
+                    snippet = snippet + "..."
+            else:
+                snippet = "（未在正文中找到）"
+                pos = 999999
+
+            brand_positions.append((brand, pos, snippet))
+
+        brand_positions.sort(key=lambda x: x[1])
+
+        for i, (brand, _pos, snippet) in enumerate(brand_positions, 1):
+            self._mention_order[brand.lower()] = (i, snippet)
+
+        lines = [
+            "## 提及顺序排名",
+            "",
+            "按品牌在 AI 回答正文中首次出现的先后顺序排列：",
+            "",
+            "| 提及顺序 | 品牌 | 上下文 |",
+            "|---------|------|--------|",
+        ]
+        for i, (brand, _pos, snippet) in enumerate(brand_positions, 1):
+            snippet_escaped = snippet.replace("|", "\\|")
+            lines.append(f"| {i} | {brand} | {snippet_escaped} |")
+
+        return "\n".join(lines)
+
+    def _find_mention_order_rank(self) -> str:
+        """Look up brand's position in mention-order ranking (local, no AI).
+        Uses fuzzy matching: exact → case-insensitive → substring."""
+        if not self.brand_keyword:
+            return ""
+        mention = getattr(self, "_mention_order", {})
+        if not mention:
+            return ""
+
+        kw = self.brand_keyword.strip().lower()
+
+        # 1. Exact match
+        found = mention.get(kw)
+        if found:
+            rank, _ = found
+            return f"提及顺序第{rank}名"
+
+        # 2. Case-insensitive key iteration
+        for key, (rank, _) in mention.items():
+            if key.strip().lower() == kw:
+                return f"提及顺序第{rank}名"
+
+        # 3. Substring match (brand_keyword in key, or key in brand_keyword)
+        for key, (rank, _) in mention.items():
+            kl = key.strip().lower()
+            if kw in kl or kl in kw:
+                return f"提及顺序第{rank}名"
+
+        return "提及顺序未找到"
+
+    async def _find_comprehensive_rank(self) -> str:
+        """Find the rank of the specified brand in comprehensive rankings via AI with harness retry."""
+        if not self.brand_keyword:
             return ""
 
         rankings = self._rankings_json.get("rankings", [])
@@ -159,3 +242,10 @@ class RankingRunner:
             BRAND_RANK_MAX_RETRIES, self.brand_keyword,
         )
         return "未找到\"" + self.brand_keyword + "\"的排名信息"
+
+    async def find_brand_rank(self) -> str:
+        """Return brand's position in both comprehensive and mention-order rankings."""
+        comp = await self._find_comprehensive_rank()
+        mention = self._find_mention_order_rank()
+        parts = [p for p in [comp, mention] if p]
+        return "，".join(parts)

@@ -96,7 +96,14 @@ class Runner:
                         "progress": 97,
                     })
                     ranking_runner = RankingRunner(answer_text, brand_keyword=self.brand_keyword)
-                    ranking_table = await ranking_runner.run()
+                    comprehensive_table = await ranking_runner.run()
+                    mention_order_table = ranking_runner.run_mention_order()
+
+                    # Combine both ranking tables
+                    ranking_table = comprehensive_table
+                    if mention_order_table:
+                        ranking_table = comprehensive_table + "\n\n" + mention_order_table
+
                     if self.brand_keyword:
                         brand_rank = await ranking_runner.find_brand_rank()
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -7,10 +7,37 @@ interface Props {
   onClose: () => void;
 }
 
+interface Section {
+  title: string;
+  content: string;
+}
+
+function parseSections(md: string): Section[] {
+  const sections: Section[] = [];
+  const parts = md.split(/\n(?=## )/);
+  for (const part of parts) {
+    const m = part.match(/^## (.+)/);
+    if (m) {
+      sections.push({ title: m[1], content: part });
+    } else if (part.trim()) {
+      sections.push({ title: "排名", content: part });
+    }
+  }
+  return sections;
+}
+
 export default function RankingViewer({ rankingTable, onClose }: Props) {
   const [fontSize, setFontSize] = useState(14);
+  const [activeTab, setActiveTab] = useState(0);
 
-  if (!rankingTable) return null;
+  const sections = useMemo(
+    () => (rankingTable ? parseSections(rankingTable) : []),
+    [rankingTable],
+  );
+
+  if (!rankingTable || sections.length === 0) return null;
+
+  const activeContent = sections[activeTab]?.content ?? "";
 
   return (
     <div
@@ -66,9 +93,32 @@ export default function RankingViewer({ rankingTable, onClose }: Props) {
           color: "#333",
         }}
       >
-        <h2 style={{ textAlign: "center", marginBottom: 20, color: "#722ed1", fontSize: "1.2em" }}>
-          品牌排名分析
-        </h2>
+        {/* Tab buttons */}
+        {sections.length > 1 && (
+          <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "2px solid #f0f0f0" }}>
+            {sections.map((s, i) => (
+              <button
+                key={s.title}
+                onClick={() => setActiveTab(i)}
+                style={{
+                  padding: "8px 20px",
+                  fontSize: 14,
+                  fontWeight: activeTab === i ? 600 : 400,
+                  color: activeTab === i ? "#722ed1" : "#666",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom: activeTab === i ? "2px solid #722ed1" : "2px solid transparent",
+                  marginBottom: -2,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {s.title}
+              </button>
+            ))}
+          </div>
+        )}
+
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -104,7 +154,7 @@ export default function RankingViewer({ rankingTable, onClose }: Props) {
             code: ({ children }) => <code style={{ backgroundColor: "#f3f4f6", padding: "2px 6px", borderRadius: 4, fontSize: "0.88em", color: "#e11d48" }}>{children}</code>,
           }}
         >
-          {rankingTable}
+          {activeContent}
         </ReactMarkdown>
 
         <div style={{ textAlign: "center", marginTop: 20, paddingTop: 16, borderTop: "1px solid #f0f0f0" }}>

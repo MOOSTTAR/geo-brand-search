@@ -10,6 +10,7 @@ import TaskDetail from "./components/TaskDetail";
 import ScreenshotViewer from "./components/ScreenshotViewer";
 import ResponseViewer from "./components/ResponseViewer";
 import RankingViewer from "./components/RankingViewer";
+import ToastContainer, { showToast } from "./components/Toast";
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -99,6 +100,9 @@ export default function App() {
     setSubmitting(true);
     try {
       await createTask(query, brandKeyword || undefined);
+      showToast("任务已创建", "success");
+    } catch {
+      showToast("创建任务失败", "error");
     } finally {
       setSubmitting(false);
     }
@@ -109,8 +113,9 @@ export default function App() {
       await deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       if (detailTaskId === taskId) setDetailTaskId(null);
+      showToast("删除成功", "success");
     } catch (err) {
-      console.error("Delete failed:", err);
+      showToast("删除失败", "error");
     }
   }, [detailTaskId]);
 
@@ -165,6 +170,7 @@ export default function App() {
         rankingTable={rankingTable}
         onClose={() => setRankingTable(null)}
       />
+      <ToastContainer />
     </Layout>
   );
 }
