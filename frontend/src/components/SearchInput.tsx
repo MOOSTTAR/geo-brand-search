@@ -5,7 +5,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const PLATFORM_COLORS: Record<string, string> = {
+const ICON_COLORS: Record<string, string> = {
   deepseek: "#4d6bfe",
   doubao: "#10b981",
   yuanbao: "#f59e0b",
@@ -15,12 +15,12 @@ const PLATFORM_COLORS: Record<string, string> = {
 };
 
 const AVAILABLE_PLATFORMS = [
-  { key: "deepseek", label: "DeepSeek" },
-  { key: "doubao", label: "豆包" },
-  { key: "yuanbao", label: "元宝" },
-  { key: "qwen", label: "千问" },
-  { key: "yiyan", label: "文心一言" },
-  { key: "kimi", label: "Kimi" },
+  { key: "deepseek", label: "DeepSeek", icon: "https://www.deepseek.com/favicon.ico" },
+  { key: "doubao", label: "豆包", icon: "https://www.doubao.com/favicon.ico" },
+  { key: "yuanbao", label: "元宝", icon: "https://yuanbao.tencent.com/favicon.ico" },
+  { key: "qwen", label: "千问", icon: "https://tongyi.aliyun.com/favicon.ico" },
+  { key: "yiyan", label: "文心一言", icon: "https://yiyan.baidu.com/favicon.ico" },
+  { key: "kimi", label: "Kimi", icon: "https://kimi.moonshot.cn/favicon.ico" },
 ];
 
 const inputBase: React.CSSProperties = {
@@ -194,13 +194,32 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
                       overflow: "hidden",
                     }}
                   >
-                    <svg width="38" height="38" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="38" height="38" rx="10" fill={PLATFORM_COLORS[p.key] ?? "#6b7280"} opacity="0.15"/>
-                      <rect x="2" y="2" width="34" height="34" rx="8" fill={PLATFORM_COLORS[p.key] ?? "#6b7280"}/>
-                      <text x="19" y="25" textAnchor="middle" fontSize="16" fontWeight="700" fill="#fff" fontFamily="system-ui, sans-serif">
-                        {p.label.charAt(0)}
-                      </text>
-                    </svg>
+                    <img
+                      src={p.icon}
+                      alt={p.label}
+                      style={{ width: 38, height: 38, borderRadius: 10 }}
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.style.display = "none";
+                        const fb = img.nextElementSibling as HTMLElement;
+                        if (fb) fb.style.display = "flex";
+                      }}
+                    />
+                    <span style={{
+                      display: "none",
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      backgroundColor: (ICON_COLORS[p.key] ?? "#6b7280"),
+                      color: "#fff",
+                      fontSize: 17,
+                      fontWeight: 700,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "system-ui, sans-serif",
+                    }}>
+                      {p.label.charAt(0)}
+                    </span>
                   </button>
                   <span style={{
                     fontSize: 12,
