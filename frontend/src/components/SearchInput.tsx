@@ -62,7 +62,8 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      paddingTop: 50,
+      justifyContent: "center",
+      minHeight: "calc(100vh - 140px)",
       animation: "slide-down 0.4s ease",
     }}>
       {/* Hero title */}
