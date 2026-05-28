@@ -172,6 +172,7 @@ export default function TechBackground() {
       velocity.x = 0;
       velocity.y = 0;
       prevMouse = { x: e.clientX, y: e.clientY };
+      container.style.cursor = "grabbing";
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -185,7 +186,10 @@ export default function TechBackground() {
       prevMouse = { x: e.clientX, y: e.clientY };
     };
 
-    const onMouseUp = () => { isDragging = false; };
+    const onMouseUp = () => {
+      isDragging = false;
+      container.style.cursor = "grab";
+    };
 
     const onResize = () => {
       const w = window.innerWidth;
@@ -235,7 +239,7 @@ export default function TechBackground() {
   return (
     <div
       ref={containerRef}
-      style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}
+      style={{ position: "fixed", inset: 0, zIndex: 0, cursor: "grab" }}
     />
   );
 }
