@@ -89,6 +89,11 @@ input {
   50% { transform: scale(1.12); }
 }
 
+@keyframes float-arrow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+
 .card-hover {
   transition: transform var(--transition), box-shadow var(--transition);
 }

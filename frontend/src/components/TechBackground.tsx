@@ -96,13 +96,19 @@ function createWordSprite(word: string, color: string, glow: string): THREE.Spri
 interface Props {
   visible: boolean;
   intro: boolean;
+  scrollProgress: number;
+  scaleProgress: number;
   onIntroDone?: () => void;
 }
 
-export default function TechBackground({ visible, intro, onIntroDone }: Props) {
+export default function TechBackground({ visible, intro, scrollProgress, scaleProgress, onIntroDone }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
+  const scrollRef = useRef(scrollProgress);
+  scrollRef.current = scrollProgress;
+  const scaleRef = useRef(scaleProgress);
+  scaleRef.current = scaleProgress;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -126,11 +132,11 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
     const sprites: { s: THREE.Sprite; d: SpriteData }[] = [];
     scene.add(group);
 
-    // Precompute target points
+    // Precompute target points for GEO letters
     const letterW = 200, letterH = 300, spacing = 240, scale = 0.03;
     const shuffled = [...KEYWORDS].sort(() => Math.random() - 0.5);
-    const spreadRadius = 12;
-    const allTargets: { pt: { x: number; y: number }; ld: LetterDef; word: string }[] = [];
+    const spreadRadius = 20;
+    const allTargets: { pt: { x: number; y: number }; ld: LetterDef | null; word: string; ez?: number }[] = [];
 
     LETTERS.forEach((ld, li) => {
       const pts = sampleLetter(ld.char, letterW, letterH);
@@ -143,6 +149,26 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
       });
     });
 
+    // Shell particles: hollow sphere wall around GEO
+    const shellColors = ["#e5e7eb", "#bae6fd", "#93c5fd", "#7dd3fc", "#cbd5e1", "#94a3b8"];
+    const shellCount = 300;
+    const shellInner = 14, shellOuter = 18;
+    const shellWords = [...shuffled].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < shellCount; i++) {
+      const r = shellInner + Math.random() * (shellOuter - shellInner);
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const ex = Math.sin(phi) * Math.cos(theta) * r;
+      const ey = Math.sin(phi) * Math.sin(theta) * r;
+      const ez = Math.cos(phi) * r;
+      allTargets.push({
+        pt: { x: ex / scale, y: ey / scale },
+        ld: null,
+        word: shellWords[i % shellWords.length],
+        ez: Math.cos(phi) * r,
+      });
+    }
+
     // Create sprites in batches to avoid blocking first render
     let batchIdx = 0;
     const BATCH = 30;
@@ -152,14 +178,29 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
       const end = Math.min(batchIdx + BATCH, allTargets.length);
       for (let i = batchIdx; i < end; i++) {
         const { pt, ld, word } = allTargets[i];
-        const t = (pt.y + letterH / 2) / letterH;
-        const color = colorWithVariance(ld.colorTop, ld.colorBot, 1 - t);
-        const sprite = createWordSprite(word, color, ld.glow);
 
-        const li = LETTERS.indexOf(ld);
-        const ex = pt.x * scale + (li - 1) * spacing * scale;
-        const ey = pt.y * scale;
-        const ez = (Math.random() - 0.5) * 0.5;
+        let color: string, glow: string;
+        if (ld) {
+          const t = (pt.y + letterH / 2) / letterH;
+          color = colorWithVariance(ld.colorTop, ld.colorBot, 1 - t);
+          glow = ld.glow;
+        } else {
+          const sc = shellColors[Math.floor(Math.random() * shellColors.length)];
+          color = colorWithVariance(sc, sc, Math.random());
+          glow = "rgba(148,163,184,0.2)";
+        }
+        const sprite = createWordSprite(word, color, glow);
+
+        let ex: number, ey: number;
+        if (ld) {
+          const li = LETTERS.indexOf(ld);
+          ex = pt.x * scale + (li - 1) * spacing * scale;
+          ey = pt.y * scale;
+        } else {
+          ex = pt.x * scale;
+          ey = pt.y * scale;
+        }
+        const ez = allTargets[i].ez ?? (Math.random() - 0.5) * 1.5;
         const theta2 = Math.random() * Math.PI * 2;
         const phi2 = Math.acos(2 * Math.random() - 1);
         const sx = Math.sin(phi2) * Math.cos(theta2) * spreadRadius;
@@ -250,6 +291,12 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
         }
       }
 
+      // Scroll-driven: position lags, scale leads
+      const sp = scrollRef.current;
+      const sc = scaleRef.current;
+      group.position.y = sp * 6;
+      group.scale.setScalar(1 - sc * 0.25);
+
       // Rotation logic (only after intro)
       if (introDone) {
         if (isDragging) {
@@ -288,7 +335,9 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
         inset: 0,
         zIndex: 0,
         display: visible ? "block" : "none",
-        background: intro ? "radial-gradient(ellipse at center, #1e1e30 0%, #0d0d14 100%)" : "transparent",
+        background: intro
+          ? `radial-gradient(ellipse at center, rgba(30,30,48,${1 - scrollProgress}) 0%, rgba(13,13,20,${1 - scrollProgress}) 100%)`
+          : "linear-gradient(to bottom, rgba(13,13,20,0.6) 0%, rgba(13,13,20,0.2) 40%, transparent 70%)",
       }}
     />
   );

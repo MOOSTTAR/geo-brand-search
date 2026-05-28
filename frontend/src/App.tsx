@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task, WsMessage } from "./api/types";
 import { createTask, fetchTasks, deleteTask } from "./api/types";
 import { useWebSocket } from "./hooks/useWebSocket";
@@ -30,35 +30,60 @@ export default function App() {
   const [answerHtml, setAnswerHtml] = useState<string | null>(null);
   const [rankingTable, setRankingTable] = useState<string | null>(null);
 
-  // Splash / intro
+  // Intro / scroll progress
   const hasPath = parsePath() !== null;
   const [introDone, setIntroDone] = useState(false);
-  const [splashDismissed, setSplashDismissed] = useState(hasPath);
-  const showSplash = !hasPath && !splashDismissed;
+  const [scrollProgress, setScrollProgress] = useState(hasPath ? 1 : 0);
+  const [scaleProgress, setScaleProgress] = useState(hasPath ? 1 : 0);
+  const animRef = useRef<number>(0);
 
-  // Scroll or click to dismiss splash
+  // Block scroll during splash
   useEffect(() => {
-    if (!showSplash) return;
-    const dismiss = () => setSplashDismissed(true);
-    window.addEventListener("wheel", dismiss, { once: true });
-    window.addEventListener("click", dismiss, { once: true });
-    return () => {
-      window.removeEventListener("wheel", dismiss);
-      window.removeEventListener("click", dismiss);
+    if (hasPath || scrollProgress >= 1) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [hasPath, scrollProgress]);
+
+  // easeOutBack: overshoot then settle
+  function easeOutBack(t: number): number {
+    const c1 = 1.2;
+    return 1 + (c1 + 1) * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  }
+  function easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  // Click to animate scroll
+  const handleEnter = useCallback(() => {
+    if (!introDone) return;
+    const start = performance.now();
+    const duration = 1000;
+    const tick = (now: number) => {
+      const raw = Math.min((now - start) / duration, 1);
+      const pos = easeOutBack(raw);
+      const scl = easeOutCubic(raw); // scale leads, no overshoot
+      setScrollProgress(pos);
+      setScaleProgress(scl);
+      if (raw < 1) animRef.current = requestAnimationFrame(tick);
+      else document.body.style.overflow = "";
     };
-  }, [showSplash]);
+    animRef.current = requestAnimationFrame(tick);
+  }, [introDone]);
+
+  useEffect(() => {
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, []);
 
   useEffect(() => {
     fetchTasks().then(setTasks).catch(console.error);
   }, []);
 
-  // Sync URL ↔ detailTaskId
+  // Sync URL
   useEffect(() => {
     const target = detailTaskId ? "/" + detailTaskId : "/";
     if (window.location.pathname !== target) {
       window.history.pushState(null, "", target);
     }
-
     const onPop = () => {
       const id = parsePath();
       setDetailTaskId(id);
@@ -71,47 +96,30 @@ export default function App() {
   const handleWsMessage = useCallback((msg: WsMessage) => {
     const { type, data } = msg;
     if (!data?.task_id) return;
-
     setTasks((prev) => {
       const idx = prev.findIndex((t) => t.id === data.task_id);
-
       if (type === "task_created") {
         if (idx >= 0) return prev;
         const newTask: Task = {
-          id: data.task_id,
-          query: data.query || "",
-          status: "creating",
-          progress: 0,
-          current_step: null,
-          screenshot_path: null,
-          response_text: null,
-          thinking_text: null,
-          answer_text: null,
-          answer_html: null,
-          ranking_table: null,
-          brand_keyword: data.brand_keyword ?? null,
-          brand_rank: null,
-          sources_json: null,
-          error_message: null,
+          id: data.task_id, query: data.query || "", status: "creating", progress: 0,
+          current_step: null, screenshot_path: null, response_text: null,
+          thinking_text: null, answer_text: null, answer_html: null,
+          ranking_table: null, brand_keyword: data.brand_keyword ?? null,
+          brand_rank: null, sources_json: null, error_message: null,
           created_at: data.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          completed_at: null,
+          updated_at: new Date().toISOString(), completed_at: null,
         };
         return [newTask, ...prev];
       }
-
       if (idx < 0) return prev;
-
       const updated = [...prev];
       const task = { ...updated[idx] };
-
       if (type === "task_progress") {
         task.status = (data.status as Task["status"]) || "executing";
         task.progress = data.progress ?? task.progress;
         task.current_step = data.message ?? task.current_step;
       } else if (type === "task_completed") {
-        task.status = "completed";
-        task.progress = 100;
+        task.status = "completed"; task.progress = 100;
         task.screenshot_path = data.screenshot_path ?? null;
         task.response_text = data.response_text ?? null;
         task.thinking_text = data.thinking_text ?? null;
@@ -128,7 +136,6 @@ export default function App() {
       } else if (type === "task_ranking") {
         task.ranking_table = data.ranking_table ?? null;
       }
-
       task.updated_at = data.timestamp ?? new Date().toISOString();
       updated[idx] = task;
       return updated;
@@ -155,19 +162,14 @@ export default function App() {
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       if (detailTaskId === taskId) setDetailTaskId(null);
       showToast("删除成功", "success");
-    } catch {
-      showToast("删除失败", "error");
-    }
+    } catch { showToast("删除失败", "error"); }
   }, [detailTaskId]);
 
   const handleViewDetail = useCallback((taskId: string) => {
-    setDetailTaskId(taskId);
-    setActiveTab("tasks");
+    setDetailTaskId(taskId); setActiveTab("tasks");
   }, []);
 
-  const handleBack = useCallback(() => {
-    setDetailTaskId(null);
-  }, []);
+  const handleBack = useCallback(() => setDetailTaskId(null), []);
 
   const detailTask = detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? null : null;
 
@@ -183,9 +185,7 @@ export default function App() {
 
   const handleViewRanking = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
-    if (task?.ranking_table) {
-      setRankingTable(task.ranking_table);
-    }
+    if (task?.ranking_table) setRankingTable(task.ranking_table);
   }, [tasks]);
 
   const handleTabChange = useCallback((key: string) => {
@@ -193,96 +193,81 @@ export default function App() {
     if (key !== "tasks") setDetailTaskId(null);
   }, []);
 
+  const showApp = hasPath || scrollProgress >= 1;
+
   return (
-    <div style={{ opacity: showSplash ? 0 : 1, transition: "opacity 0.5s ease", pointerEvents: showSplash ? "none" : "auto" }}>
-      <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
+    <div style={{ position: "relative" }}>
+      {/* 3D GEO — always visible */}
       <TechBackground
-        visible={showSplash || activeTab === "search"}
-        intro={showSplash}
+        visible={true}
+        intro={!hasPath}
+        scrollProgress={scrollProgress}
+        scaleProgress={scaleProgress}
         onIntroDone={() => setIntroDone(true)}
       />
 
-      {/* Splash overlay */}
-      {showSplash && (
+      {/* Splash text indicators */}
+      {!hasPath && scrollProgress < 1 && (
         <div style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: "none",
+          position: "fixed", inset: 0, zIndex: 10,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          opacity: 1 - scrollProgress,
+          transition: "opacity 0.2s",
         }}>
           {introDone && (
-            <div style={{
-              animation: "fade-in 0.6s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 10,
-              marginTop: "55vh",
-            }}>
-              <span style={{ fontSize: 13, color: "#9ca3af", letterSpacing: 2 }}>
-                滚动或点击进入
+            <button
+              onClick={handleEnter}
+              style={{
+                display: "flex", flexDirection: "column",
+                alignItems: "center", gap: 10, marginTop: "55vh",
+                background: "none", border: "none", cursor: "pointer",
+                animation: "fade-in 0.8s ease",
+              }}>
+              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", letterSpacing: 2 }}>
+                开启探索
               </span>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2"
+                style={{ animation: "float-arrow 2s ease-in-out infinite" }}>
                 <path d="M12 5v14M5 12l7 7 7-7" />
               </svg>
-            </div>
+            </button>
           )}
         </div>
       )}
-      {activeTab === "search" && (
-        <SearchInput onSubmit={handleSubmit} disabled={submitting} />
-      )}
 
-      {activeTab === "tasks" && (
-        detailTask ? (
-          <TaskDetail
-            task={detailTask}
-            onViewScreenshot={openScreenshot}
-            onViewResponse={handleViewResponse}
-            onViewRanking={handleViewRanking}
-            onBack={handleBack}
-          />
-        ) : (
-          <TaskList
-            tasks={tasks}
-            onViewDetail={handleViewDetail}
-            onDelete={handleDelete}
-          />
-        )
-      )}
-
-      {activeTab === "profile" && (
-        <div style={{
-          textAlign: "center",
-          padding: 80,
-          color: "#999",
-          fontSize: 15,
-          backgroundColor: "#fff",
-          borderRadius: 8,
-          border: "1px solid #f0f0f0",
-        }}>
-          暂未开发
-        </div>
-      )}
+      {/* App content */}
+      <div style={{
+        opacity: showApp ? 1 : 0,
+        transition: "opacity 0.5s ease",
+        pointerEvents: showApp ? "auto" : "none",
+      }}>
+        <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
+          {activeTab === "search" && <SearchInput onSubmit={handleSubmit} disabled={submitting} />}
+          {activeTab === "tasks" && (
+            detailTask ? (
+              <TaskDetail task={detailTask} onViewScreenshot={openScreenshot}
+                onViewResponse={handleViewResponse} onViewRanking={handleViewRanking}
+                onBack={handleBack} />
+            ) : (
+              <TaskList tasks={tasks} onViewDetail={handleViewDetail} onDelete={handleDelete} />
+            )
+          )}
+          {activeTab === "profile" && (
+            <div style={{ textAlign: "center", padding: 80, color: "#999", fontSize: 15,
+              backgroundColor: "#fff", borderRadius: 8, border: "1px solid #f0f0f0" }}>
+              暂未开发
+            </div>
+          )}
+        </Layout>
+      </div>
 
       <ScreenshotViewer url={screenshotUrl} onClose={closeScreenshot} />
-      <ResponseViewer
-        text={responseText}
-        thinkingText={thinkingText}
-        answerText={answerText}
-        answerHtml={answerHtml}
-        onClose={() => { setResponseText(null); setThinkingText(null); setAnswerText(null); setAnswerHtml(null); }}
-      />
-      <RankingViewer
-        rankingTable={rankingTable}
-        onClose={() => setRankingTable(null)}
-      />
+      <ResponseViewer text={responseText} thinkingText={thinkingText}
+        answerText={answerText} answerHtml={answerHtml}
+        onClose={() => { setResponseText(null); setThinkingText(null); setAnswerText(null); setAnswerHtml(null); }} />
+      <RankingViewer rankingTable={rankingTable} onClose={() => setRankingTable(null)} />
       <ToastContainer />
-    </Layout>
     </div>
   );
 }
