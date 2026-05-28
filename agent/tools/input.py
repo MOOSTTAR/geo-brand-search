@@ -734,48 +734,46 @@ async def _extract_sources(page) -> str:
 
                     const rawText = (a.textContent || '').trim();
 
-                    // DeepSeek concatenates: [site_name][date][cite_number][title+snippet]
-                    // Parse with regex: non-greedy prefix, date YYYY/MM/DD, optional cite number, rest
-                    const parseRe = /^(.+?)(\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})(\\d{1,2})?(.+)$/;
-                    const pm = rawText.match(parseRe);
-
+                    // DeepSeek concatenates: [site_name][date][cite_number][title]
+                    // Strategy: find date first, then look for a year pattern (\d{4}年) after it.
+                    // Digits between date and year → cite number. Year + rest → title.
                     let siteName = '', date = '', cite = '', title = '', snippet = '';
 
-                    if (pm) {
-                        siteName = pm[1].trim();
-                        date = pm[2];
-                        cite = (pm[3] || '').trim();
-                        title = (pm[4] || '').trim();
+                    const dm = rawText.match(/\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/);
+                    if (dm) {
+                        date = dm[0];
+                        const di = dm.index;
+                        siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
+                        const after = rawText.substring(di + date.length);
 
-                        // Fix: if cite ate a digit from a year in the title
-                        // e.g. "2026/05/25" + cite="2" + title="026年xxx" → merge back
-                        if (cite && /^\\d{3}年/.test(title)) {
-                            title = cite + title;
-                            cite = '';
-                        }
-                    } else {
-                        // Fallback: try to extract date anywhere in text
-                        const dm = rawText.match(/\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/);
-                        if (dm) {
-                            date = dm[0];
-                            const di = rawText.indexOf(date);
-                            siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
-                            const after = rawText.substring(di + date.length);
+                        // Try to find a 4-digit year pattern: digits between date and year = cite
+                        const yearRe = /\\d{4}年/;
+                        const ym = after.match(yearRe);
+                        if (ym && ym.index > 0) {
+                            const prefix = after.substring(0, ym.index);
+                            // Prefix should be just the cite number (1-2 digits)
+                            const cm = prefix.match(/^(\\d{1,2})$/);
+                            if (cm) {
+                                cite = cm[1];
+                                title = after.substring(ym.index).trim();
+                            } else {
+                                title = after.trim();
+                            }
+                        } else if (ym && ym.index === 0) {
+                            // Year at position 0 → no cite, title starts with year
+                            title = after.trim();
+                        } else {
+                            // No year pattern → cite is leading digits (if any)
                             const cm = after.match(/^(\\d{1,2})/);
                             if (cm) {
                                 cite = cm[1];
                                 title = after.substring(cm[0].length).trim();
-                                // Same fix: detect truncated year
-                                if (/^\\d{3}年/.test(title)) {
-                                    title = cite + title;
-                                    cite = '';
-                                }
                             } else {
                                 title = after.trim();
                             }
-                        } else {
-                            title = rawText;
                         }
+                    } else {
+                        title = rawText;
                     }
 
                     // Clean site name: remove leading cite number if still present
