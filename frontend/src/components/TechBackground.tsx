@@ -163,7 +163,6 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
       });
     });
 
-    group.position.y = 5;
     scene.add(group);
 
     // Intro timing
@@ -267,7 +266,13 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
   return (
     <div
       ref={containerRef}
-      style={{ position: "fixed", inset: 0, zIndex: 0, display: visible ? "block" : "none" }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 0,
+        display: visible ? "block" : "none",
+        background: intro ? "radial-gradient(ellipse at center, #1e1e30 0%, #0d0d14 100%)" : "transparent",
+      }}
     />
   );
 }
