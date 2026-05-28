@@ -127,7 +127,7 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
 
     const letterW = 200, letterH = 300, spacing = 240, scale = 0.03;
     const shuffled = [...KEYWORDS].sort(() => Math.random() - 0.5);
-    const spreadRadius = 30;
+    const spreadRadius = 12;
 
     LETTERS.forEach((ld, li) => {
       const pts = sampleLetter(ld.char, letterW, letterH);
