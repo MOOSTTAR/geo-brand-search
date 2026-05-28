@@ -2,47 +2,62 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 const KEYWORDS = [
-  "DeepSeek", "ChatGPT", "Claude", "Gemini", "LLM", "GPT-5",
+  // AI models & platforms
+  "DeepSeek", "ChatGPT", "Claude", "Gemini", "GPT-5", "Grok",
+  "Kimi", "豆包", "元宝", "文心一言", "通义千问", "百川",
+  "Perplexity", "Copilot", "Gemma", "LLaMA", "Qwen", "Mistral",
+  "CommandR", "Cohere", "Anthropic", "OpenAI", "Moonshot",
+  // Core tech
   "Transformer", "Attention", "RLHF", "Fine-tuning", "RAG",
   "Prompt", "Agent", "多模态", "推理", "蒸馏", "MoE",
-  "GEO", "生成式引擎优化", "品牌排名", "搜索意图",
-  "品牌提及", "信源", "排名分析", "SEO", "SGE",
-  "Answer Engine", "Search Quality", "Brand Authority",
-  "Perplexity", "Kimi", "豆包", "文心一言", "通义千问",
-  "Copilot", "Grok", "NLP", "Embedding", "Token",
-  "Context Window", "Chain-of-Thought", "Zero-shot",
-  "Few-shot", "RL", "DL", "Vector DB",
-  "华为", "小米", "OPPO", "vivo", "苹果", "三星",
-  "特斯拉", "比亚迪", "大疆", "戴森", "索尼",
+  "Token", "Embedding", "VectorDB", "GPU", "TPU", "NPU",
+  "LangChain", "LlamaIndex", "CrewAI", "AutoGen",
+  // GEO / Search
+  "GEO", "GenerativeEngine", "品牌排名", "搜索意图",
+  "品牌提及", "信源提取", "排名分析", "SEO", "SGE",
+  "AnswerEngine", "SearchQuality", "BrandAuthority",
+  "生成式引擎", "搜索优化", "位置追踪",
+  // Brands
+  "华为", "小米", "OPPO", "vivo", "苹果", "三星", "荣耀",
+  "一加", "真我", "红米", "魅族", "联想", "摩托罗拉",
+  "特斯拉", "比亚迪", "蔚来", "理想", "小鹏", "极氪",
+  "大疆", "戴森", "索尼", "Bose", "追觅", "石头",
+  "科沃斯", "云鲸", "美的", "格力", "海尔", "海信",
+  "TCL", "创维", "方太", "老板", "西门子", "松下",
+  // More terms
+  "ContextWindow", "ChainOfThought", "ZeroShot",
+  "FewShot", "RL", "DL", "NLP", "CV", "ASR", "TTS",
+  "LoRA", "QLoRA", "PEFT", "FlashAttention",
+  "AI搜索", "大模型", "语义理解", "知识图谱",
 ];
 
 type LetterDef = { char: string; colorTop: string; colorBot: string; glow: string };
 
 const LETTERS: LetterDef[] = [
-  { char: "G", colorTop: "#d1d5db", colorBot: "#6b7280", glow: "rgba(156,163,175,0.3)" },
-  { char: "E", colorTop: "#bae6fd", colorBot: "#0ea5e9", glow: "rgba(56,189,248,0.35)" },
-  { char: "O", colorTop: "#93c5fd", colorBot: "#1d4ed8", glow: "rgba(59,130,246,0.4)" },
+  { char: "G", colorTop: "#e5e7eb", colorBot: "#6b7280", glow: "rgba(156,163,175,0.4)" },
+  { char: "E", colorTop: "#e0f2fe", colorBot: "#0ea5e9", glow: "rgba(56,189,248,0.4)" },
+  { char: "O", colorTop: "#bfdbfe", colorBot: "#2563eb", glow: "rgba(59,130,246,0.45)" },
 ];
 
-function sampleLetter(char: string, width: number, height: number, density: number): { x: number; y: number }[] {
+function sampleLetter(char: string, w: number, h: number): { x: number; y: number }[] {
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "#fff";
-  ctx.font = `bold ${height * 0.85}px "Arial Black", "Segoe UI Black", sans-serif`;
+  ctx.font = `bold ${h * 0.9}px "Arial Black", "Segoe UI Black", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(char, width / 2, height / 2);
+  ctx.fillText(char, w / 2, h / 2);
 
-  const imageData = ctx.getImageData(0, 0, width, height);
+  const imageData = ctx.getImageData(0, 0, w, h);
   const points: { x: number; y: number }[] = [];
-  const step = Math.max(1, Math.floor(1 / density));
-  for (let y = 0; y < height; y += step) {
-    for (let x = 0; x < width; x += step) {
-      const i = (y * width + x) * 4;
-      if (imageData.data[i + 3] > 128) {
-        points.push({ x: x - width / 2, y: height / 2 - y });
+  const step = 3; // sample every 3 pixels
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const i = (y * w + x) * 4;
+      if (imageData.data[i + 3] > 100) {
+        points.push({ x: x - w / 2, y: h / 2 - y });
       }
     }
   }
@@ -67,10 +82,9 @@ function createWordSprite(word: string, color: string, glow: string): THREE.Spri
   canvas.height = size / 4;
   const ctx = canvas.getContext("2d")!;
 
-  // Glow effect
   ctx.shadowColor = glow;
-  ctx.shadowBlur = 8;
-  ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.shadowBlur = 10;
+  ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -81,12 +95,11 @@ function createWordSprite(word: string, color: string, glow: string): THREE.Spri
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.9,
     depthWrite: false,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(1.8, 0.45, 1);
-  sprite.userData = { word };
+  sprite.scale.set(1.5, 0.38, 1);
   return sprite;
 }
 
@@ -101,8 +114,8 @@ export default function TechBackground() {
     const height = window.innerHeight;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, width / height, 1, 100);
-    camera.position.z = 22;
+    const camera = new THREE.PerspectiveCamera(45, width / height, 1, 100);
+    camera.position.z = 24;
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
@@ -111,39 +124,34 @@ export default function TechBackground() {
 
     const group = new THREE.Group();
 
-    // Letter dimensions
-    const letterW = 180;
-    const letterH = 260;
-    const density = 0.5;
-    const spacing = letterW * 1.05;
-    const totalW = spacing * 3;
-    const scale = 0.024;
+    // Bigger letter canvas for more detail
+    const letterW = 280;
+    const letterH = 400;
+    const spacing = 330;
+    const scale = 0.025;
 
     let wordIdx = 0;
 
     LETTERS.forEach((ld, li) => {
-      const points = sampleLetter(ld.char, letterW, letterH, density);
-      // Thin out + add slight Z variation
-      const sampled = points.sort(() => Math.random() - 0.5);
+      const pts = sampleLetter(ld.char, letterW, letterH);
 
-      sampled.forEach((pt) => {
-        if (wordIdx >= KEYWORDS.length) return;
-        const word = KEYWORDS[wordIdx++ % KEYWORDS.length];
+      pts.forEach((pt) => {
+        if (wordIdx >= KEYWORDS.length) wordIdx = 0;
+        const word = KEYWORDS[wordIdx++];
 
-        // Gradient: top to bottom
-        const t = (pt.y + letterH / 2) / letterH; // 0(bottom) to 1(top)
+        const t = (pt.y + letterH / 2) / letterH;
         const color = lerpColor(ld.colorTop, ld.colorBot, 1 - t);
         const sprite = createWordSprite(word, color, ld.glow);
 
         const x = pt.x * scale + (li - 1) * spacing * scale;
         const y = pt.y * scale;
-        const z = (Math.random() - 0.5) * 0.6;
+        const z = (Math.random() - 0.5) * 0.5;
         sprite.position.set(x, y, z);
         group.add(sprite);
       });
     });
 
-    group.position.y = 5.5;
+    group.position.y = 5;
     scene.add(group);
 
     // Mouse interaction
