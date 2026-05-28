@@ -143,6 +143,7 @@ export default function TechBackground() {
       });
     });
 
+    group.position.y = 5.5;
     scene.add(group);
 
     // Mouse interaction
