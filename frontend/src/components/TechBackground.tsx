@@ -207,8 +207,6 @@ export default function TechBackground() {
         group.rotation.x += velocity.x;
         velocity.x *= 0.95;
         velocity.y *= 0.95;
-      } else {
-        group.rotation.y += 0.003;
       }
 
       renderer.render(scene, camera);
