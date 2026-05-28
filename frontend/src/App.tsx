@@ -220,14 +220,19 @@ export default function App() {
               onClick={handleEnter}
               style={{
                 display: "flex", flexDirection: "column",
-                alignItems: "center", gap: 10, marginTop: "55vh",
-                background: "none", border: "none", cursor: "pointer",
-                animation: "fade-in 0.8s ease",
-              }}>
-              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", letterSpacing: 2 }}>
+                alignItems: "center", gap: 14, marginTop: "55vh",
+                background: "none",
+                border: "none",
+                borderRadius: 16,
+                padding: "18px 36px",
+                cursor: "pointer",
+                animation: "fade-in 0.8s ease, btn-pulse 2.5s ease-in-out 0.8s infinite",
+              }}
+            >
+              <span style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", letterSpacing: 4, fontWeight: 500 }}>
                 开启探索
               </span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2"
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2"
                 style={{ animation: "float-arrow 2s ease-in-out infinite" }}>
                 <path d="M12 5v14M5 12l7 7 7-7" />
               </svg>
