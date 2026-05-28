@@ -30,6 +30,20 @@ export default function App() {
   const [answerHtml, setAnswerHtml] = useState<string | null>(null);
   const [rankingTable, setRankingTable] = useState<string | null>(null);
 
+  // Splash / intro
+  const hasPath = parsePath() !== null;
+  const [introDone, setIntroDone] = useState(false);
+  const [splashDismissed, setSplashDismissed] = useState(hasPath);
+  const showSplash = !hasPath && !splashDismissed;
+
+  // Scroll to dismiss splash
+  useEffect(() => {
+    if (!showSplash) return;
+    const onWheel = () => setSplashDismissed(true);
+    window.addEventListener("wheel", onWheel, { once: true });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [showSplash]);
+
   useEffect(() => {
     fetchTasks().then(setTasks).catch(console.error);
   }, []);
@@ -176,8 +190,45 @@ export default function App() {
   }, []);
 
   return (
-    <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
-      <TechBackground visible={activeTab === "search"} />
+    <div style={{ opacity: showSplash ? 0 : 1, transition: "opacity 0.5s ease", pointerEvents: showSplash ? "none" : "auto" }}>
+      <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
+      <TechBackground
+        visible={showSplash || activeTab === "search"}
+        intro={showSplash}
+        onIntroDone={() => setIntroDone(true)}
+      />
+
+      {/* Splash overlay */}
+      {showSplash && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 10,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          paddingBottom: 60,
+          pointerEvents: "none",
+        }}>
+          {introDone && (
+            <div style={{
+              animation: "fade-in 0.6s ease",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 13, color: "#9ca3af", letterSpacing: 2 }}>
+                向下滚动
+              </span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
+            </div>
+          )}
+        </div>
+      )}
       {activeTab === "search" && (
         <SearchInput onSubmit={handleSubmit} disabled={submitting} />
       )}
@@ -228,5 +279,6 @@ export default function App() {
       />
       <ToastContainer />
     </Layout>
+    </div>
   );
 }
