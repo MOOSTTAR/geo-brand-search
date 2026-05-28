@@ -49,15 +49,15 @@ function sampleLetter(char: string, width: number, height: number, density: numb
   return points;
 }
 
-function lerpColor(a: string, b: string, t: number): string {
-  const ah = parseInt(a.slice(1), 16);
-  const bh = parseInt(b.slice(1), 16);
+function lerpColor(hexA: string, hexB: string, t: number): string {
+  const ah = parseInt(hexA.slice(1), 16);
+  const bh = parseInt(hexB.slice(1), 16);
   const ar = (ah >> 16) & 0xff, ag = (ah >> 8) & 0xff, ab = ah & 0xff;
   const br = (bh >> 16) & 0xff, bg = (bh >> 8) & 0xff, bb = bh & 0xff;
-  const r = Math.round(ar + (br - ar) * t);
-  const g = Math.round(ag + (bg - ag) * t);
-  const b = Math.round(ab + (bb - ab) * t);
-  return `rgb(${r},${g},${b})`;
+  const R = Math.round(ar + (br - ar) * t);
+  const G = Math.round(ag + (bg - ag) * t);
+  const B = Math.round(ab + (bb - ab) * t);
+  return `rgb(${R},${G},${B})`;
 }
 
 function createWordSprite(word: string, color: string, glow: string): THREE.Sprite {
