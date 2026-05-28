@@ -103,8 +103,10 @@ function createWordSprite(word: string, color: string, glow: string): THREE.Spri
   return sprite;
 }
 
-export default function TechBackground() {
+export default function TechBackground({ visible }: { visible: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -213,6 +215,7 @@ export default function TechBackground() {
     let animId: number;
     const animate = () => {
       animId = requestAnimationFrame(animate);
+      if (!visibleRef.current) return;
 
       if (isDragging) {
         // rotation during mousemove
@@ -245,7 +248,7 @@ export default function TechBackground() {
   return (
     <div
       ref={containerRef}
-      style={{ position: "fixed", inset: 0, zIndex: 0 }}
+      style={{ position: "fixed", inset: 0, zIndex: 0, display: visible ? "block" : "none" }}
     />
   );
 }
