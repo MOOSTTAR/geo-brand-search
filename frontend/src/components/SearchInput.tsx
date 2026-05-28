@@ -7,6 +7,10 @@ interface Props {
 
 const AVAILABLE_PLATFORMS = [
   { key: "deepseek", label: "DeepSeek", icon: "https://www.deepseek.com/favicon.ico" },
+  { key: "doubao", label: "豆包", icon: "https://www.doubao.com/favicon.ico" },
+  { key: "yuanbao", label: "元宝", icon: "https://yuanbao.tencent.com/favicon.ico" },
+  { key: "qwen", label: "千问", icon: "https://tongyi.aliyun.com/favicon.ico" },
+  { key: "yiyan", label: "文心一言", icon: "https://yiyan.baidu.com/favicon.ico" },
 ];
 
 const inputBase: React.CSSProperties = {
@@ -184,7 +188,28 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
                       src={p.icon}
                       alt={p.label}
                       style={{ width: 36, height: 36, borderRadius: 6 }}
+                      onError={(e) => {
+                        const el = e.target as HTMLImageElement;
+                        el.style.display = "none";
+                        const fallback = el.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
                     />
+                    {/* Fallback: colored letter */}
+                    <span style={{
+                      display: "none",
+                      width: 36,
+                      height: 36,
+                      borderRadius: 6,
+                      backgroundColor: "#f3f4f6",
+                      color: "#6b7280",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}>
+                      {p.label.charAt(0)}
+                    </span>
                   </button>
                   <span style={{
                     fontSize: 12,
