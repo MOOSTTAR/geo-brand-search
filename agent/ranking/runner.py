@@ -155,35 +155,33 @@ class RankingRunner:
 
         return "\n".join(lines)
 
-    def _find_mention_order_rank(self) -> str:
-        """Look up brand's position in mention-order ranking (local, no AI).
-        Uses fuzzy matching: exact → case-insensitive → substring."""
+    def _find_mention_order_rank(self) -> str | None:
+        """Return mention-order rank number as string, or None if not found."""
         if not self.brand_keyword:
-            return ""
+            return None
         mention = getattr(self, "_mention_order", {})
         if not mention:
-            return ""
+            return None
 
         kw = self.brand_keyword.strip().lower()
 
         # 1. Exact match
         found = mention.get(kw)
         if found:
-            rank, _ = found
-            return f"提及顺序第{rank}名"
+            return str(found[0])
 
         # 2. Case-insensitive key iteration
         for key, (rank, _) in mention.items():
             if key.strip().lower() == kw:
-                return f"提及顺序第{rank}名"
+                return str(rank)
 
-        # 3. Substring match (brand_keyword in key, or key in brand_keyword)
+        # 3. Substring match
         for key, (rank, _) in mention.items():
             kl = key.strip().lower()
             if kw in kl or kl in kw:
-                return f"提及顺序第{rank}名"
+                return str(rank)
 
-        return "提及顺序未找到"
+        return None
 
     async def _find_comprehensive_rank(self) -> str:
         """Find the rank of the specified brand in comprehensive rankings via AI with harness retry."""
@@ -244,8 +242,25 @@ class RankingRunner:
         return "未找到\"" + self.brand_keyword + "\"的排名信息"
 
     async def find_brand_rank(self) -> str:
-        """Return brand's position in both comprehensive and mention-order rankings."""
+        """Return brand's position in both rankings, formatted as 3 lines."""
+        if not self.brand_keyword:
+            return ""
+
+        import re
+
+        # 1. Comprehensive rank from AI
         comp = await self._find_comprehensive_rank()
-        mention = self._find_mention_order_rank()
-        parts = [p for p in [comp, mention] if p]
-        return "，".join(parts)
+        comp_rank: str | None = None
+        if comp:
+            m = re.search(r"第(\d+)名", comp)
+            if m:
+                comp_rank = m.group(1)
+
+        # 2. Mention order rank (local)
+        mention_rank = self._find_mention_order_rank()
+
+        # 3. Format
+        lines = [self.brand_keyword]
+        lines.append(f"综合第{comp_rank}名" if comp_rank else "综合未找到")
+        lines.append(f"提及顺序第{mention_rank}名" if mention_rank else "提及顺序未找到")
+        return "\n".join(lines)

@@ -111,6 +111,8 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
             padding: "8px 16px",
             marginBottom: 12,
             display: "inline-block",
+            whiteSpace: "pre-line",
+            lineHeight: 1.8,
           }}>
             {task.brand_rank}
           </div>
@@ -131,7 +133,7 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
           )}
           {task.ranking_table && (
             <button onClick={() => onViewRanking(task.id)} style={detailBtnStyle("#722ed1")}>
-              查看排名
+              查看所有排名
             </button>
           )}
           {task.screenshot_path && (
