@@ -2,28 +2,42 @@ interface Props {
   status: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  creating: { label: "排队中", bg: "#f0f0f0", text: "#666" },
-  executing: { label: "执行中", bg: "#e6f4ff", text: "#1890ff" },
-  completed: { label: "已完成", bg: "#f6ffed", text: "#52c41a" },
-  failed: { label: "失败", bg: "#fff2f0", text: "#ff4d4f" },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+  creating: { label: "排队中", bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af" },
+  executing: { label: "执行中", bg: "#eeedff", text: "#5b5ef7", dot: "#5b5ef7" },
+  completed: { label: "已完成", bg: "#ecfdf5", text: "#10b981", dot: "#10b981" },
+  failed: { label: "失败", bg: "#fef2f2", text: "#ef4444", dot: "#ef4444" },
 };
 
 export default function StatusBadge({ status }: Props) {
-  const config = STATUS_CONFIG[status] ?? { label: status, bg: "#f0f0f0", text: "#666" };
+  const config = STATUS_CONFIG[status] ?? { label: status, bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af" };
+  const isExecuting = status === "executing";
 
   return (
     <span
       style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: 4,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "3px 12px",
+        borderRadius: 20,
         fontSize: 12,
-        fontWeight: 500,
+        fontWeight: 600,
         backgroundColor: config.bg,
         color: config.text,
+        transition: "all var(--transition)",
       }}
     >
+      <span
+        style={{
+          display: "inline-block",
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          backgroundColor: config.dot,
+          animation: isExecuting ? "heartbeat 1.2s ease-in-out infinite" : "none",
+        }}
+      />
       {config.label}
     </span>
   );

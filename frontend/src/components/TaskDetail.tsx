@@ -62,36 +62,42 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
           background: "none",
           border: "none",
           fontSize: 14,
-          color: "#1890ff",
+          color: "var(--color-primary)",
           cursor: "pointer",
           padding: 0,
           marginBottom: 16,
           display: "flex",
           alignItems: "center",
           gap: 4,
+          fontWeight: 500,
+          transition: "opacity var(--transition)",
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
       >
         ← 返回列表
       </button>
 
       {/* Header */}
       <div style={{
-        backgroundColor: "#fff",
-        borderRadius: 8,
-        border: "1px solid #f0f0f0",
-        padding: "20px 24px",
+        backgroundColor: "var(--color-surface)",
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--color-border)",
+        padding: "24px 28px",
         marginBottom: 16,
+        boxShadow: "var(--shadow-sm)",
+        animation: "slide-down 0.3s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 18, fontWeight: 600 }}>{task.query}</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>{task.query}</span>
           {task.brand_keyword && (
             <span style={{
               fontSize: 12,
-              color: "#1677ff",
-              backgroundColor: "#e6f4ff",
-              border: "1px solid #91caff",
-              borderRadius: 4,
-              padding: "1px 8px",
+              fontWeight: 600,
+              color: "var(--color-primary)",
+              backgroundColor: "var(--color-primary-light)",
+              borderRadius: 10,
+              padding: "3px 12px",
               whiteSpace: "nowrap",
             }}>
               品牌: {task.brand_keyword}
@@ -102,26 +108,25 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
         {/* Brand rank */}
         {task.brand_rank && (
           <div style={{
-            fontSize: 15,
-            fontWeight: 500,
-            color: "#722ed1",
-            backgroundColor: "#f9f0ff",
-            border: "1px solid #d3adf7",
-            borderRadius: 6,
-            padding: "8px 16px",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--color-primary)",
+            background: "linear-gradient(135deg, #f5f4ff, #ede9fe)",
+            borderRadius: "var(--radius-md)",
+            padding: "10px 18px",
             marginBottom: 12,
             display: "inline-block",
             whiteSpace: "pre-line",
-            lineHeight: 1.8,
+            lineHeight: 1.9,
           }}>
             {task.brand_rank}
           </div>
         )}
 
         {/* Meta info */}
-        <div style={{ display: "flex", gap: 24, fontSize: 13, color: "#666" }}>
-          <span><span style={{ color: "#999" }}>创建时间: </span>{timeStr}</span>
-          {duration && <span><span style={{ color: "#999" }}>任务用时: </span>{duration}</span>}
+        <div style={{ display: "flex", gap: 24, fontSize: 13, color: "var(--color-text-secondary)" }}>
+          <span>创建 {timeStr}</span>
+          {duration && <span>用时 {duration}</span>}
         </div>
 
         {/* Action buttons */}
@@ -157,20 +162,20 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
               href={src.url}
               target="_blank"
               rel="noopener noreferrer"
+              className="card-hover"
               style={{
                 display: "flex",
                 gap: 12,
                 padding: "14px 16px",
-                backgroundColor: "#fff",
-                borderRadius: 8,
-                border: "1px solid #f0f0f0",
+                backgroundColor: "var(--color-surface)",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--color-border)",
                 marginBottom: 8,
                 textDecoration: "none",
                 color: "inherit",
-                transition: "box-shadow 0.2s",
+                animation: "slide-up 0.3s ease both",
+                animationDelay: `${i * 0.03}s`,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)")}
-              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
             >
               {/* Logo + cite column */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, minWidth: 28 }}>
@@ -187,10 +192,11 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
                 {src.cite && (
                   <span style={{
                     fontSize: 10,
-                    color: "#999",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 3,
-                    padding: "0 4px",
+                    fontWeight: 600,
+                    color: "var(--color-text-muted)",
+                    backgroundColor: "#f3f4f6",
+                    borderRadius: 8,
+                    padding: "1px 6px",
                     lineHeight: "16px",
                     textAlign: "center",
                   }}>
@@ -201,27 +207,27 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "#1a1a1a", lineHeight: 1.4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", lineHeight: 1.4 }}>
                     {src.title || src.url}
                   </span>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   {src.site_name && (
-                    <span style={{ fontSize: 12, color: "#8c8c8c" }}>{src.site_name}</span>
+                    <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>{src.site_name}</span>
                   )}
                   {src.date && (
-                    <span style={{ fontSize: 12, color: "#bbb" }}>{src.date}</span>
+                    <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{src.date}</span>
                   )}
                 </div>
 
                 {src.snippet && (
-                  <div style={{ fontSize: 12, color: "#999", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                     {src.snippet}
                   </div>
                 )}
 
-                <div style={{ fontSize: 11, color: "#bbb", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {src.url}
                 </div>
               </div>
@@ -278,24 +284,28 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
 
 function detailBtnStyle(color: string): React.CSSProperties {
   return {
-    padding: "6px 16px",
+    padding: "7px 18px",
     fontSize: 13,
+    fontWeight: 500,
     color,
     backgroundColor: "transparent",
-    border: `1px solid ${color}`,
-    borderRadius: 4,
+    border: `1.5px solid ${color}`,
+    borderRadius: 20,
     cursor: "pointer",
+    transition: "all var(--transition)",
   };
 }
 
 function pageBtnStyle(disabled: boolean): React.CSSProperties {
   return {
-    padding: "4px 12px",
+    padding: "5px 14px",
     fontSize: 12,
-    color: disabled ? "#d9d9d9" : "#1890ff",
+    fontWeight: 500,
+    color: disabled ? "var(--color-text-muted)" : "var(--color-primary)",
     backgroundColor: "transparent",
-    border: `1px solid ${disabled ? "#d9d9d9" : "#1890ff"}`,
-    borderRadius: 4,
+    border: `1.5px solid ${disabled ? "var(--color-border)" : "var(--color-primary)"}`,
+    borderRadius: 20,
     cursor: disabled ? "not-allowed" : "pointer",
+    transition: "all var(--transition)",
   };
 }

@@ -15,31 +15,40 @@ interface Props {
 
 export default function Layout({ wsConnected, activeTab, onTabChange, children }: Props) {
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#fafafa" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)" }}>
       <header
         style={{
           padding: "0 24px",
-          height: 52,
+          height: 54,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          backgroundColor: "#fff",
-          borderBottom: "1px solid #f0f0f0",
+          background: "linear-gradient(135deg, #ffffff 0%, #fafaff 100%)",
+          borderBottom: "1px solid var(--color-border)",
           position: "relative",
+          zIndex: 100,
         }}
       >
-        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: "#333", whiteSpace: "nowrap" }}>
+        <h1 style={{
+          fontSize: 18,
+          fontWeight: 700,
+          margin: 0,
+          background: "var(--color-primary-gradient)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          whiteSpace: "nowrap",
+        }}>
           GEO 品牌查询
         </h1>
 
-        {/* Tab navigation — centered */}
         <nav style={{
           display: "flex",
-          gap: 0,
-          height: 52,
+          gap: 4,
+          height: 54,
           position: "absolute",
           left: "50%",
           transform: "translateX(-50%)",
+          alignItems: "center",
         }}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -48,20 +57,32 @@ export default function Layout({ wsConnected, activeTab, onTabChange, children }
                 key={tab.key}
                 onClick={() => onTabChange(tab.key)}
                 style={{
-                  padding: "0 20px",
-                  height: 52,
+                  padding: "6px 22px",
                   fontSize: 14,
                   fontWeight: isActive ? 600 : 400,
-                  color: isActive ? "#1890ff" : "#666",
-                  backgroundColor: "transparent",
+                  color: isActive ? "#fff" : "var(--color-text-secondary)",
+                  backgroundColor: isActive ? "var(--color-primary)" : "transparent",
                   border: "none",
-                  borderBottom: isActive ? "2px solid #1890ff" : "2px solid transparent",
+                  borderRadius: 20,
                   cursor: "pointer",
-                  transition: "all 0.2s",
+                  transition: "all var(--transition)",
                   whiteSpace: "nowrap",
+                  position: "relative",
                 }}
               >
                 {tab.label}
+                {isActive && (
+                  <span style={{
+                    position: "absolute",
+                    bottom: -12,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    backgroundColor: "var(--color-primary)",
+                  }} />
+                )}
               </button>
             );
           })}
@@ -74,16 +95,17 @@ export default function Layout({ wsConnected, activeTab, onTabChange, children }
               width: 8,
               height: 8,
               borderRadius: "50%",
-              backgroundColor: wsConnected ? "#52c41a" : "#ff4d4f",
+              backgroundColor: wsConnected ? "var(--color-success)" : "var(--color-error)",
+              animation: wsConnected ? "heartbeat 2s ease-in-out infinite" : "none",
             }}
           />
-          <span style={{ fontSize: 12, color: "#999" }}>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
             {wsConnected ? "已连接" : "未连接"}
           </span>
         </div>
       </header>
 
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px" }}>
+      <main style={{ maxWidth: 800, margin: "0 auto", padding: "28px 16px", animation: "fade-in 0.35s ease" }}>
         {children}
       </main>
     </div>

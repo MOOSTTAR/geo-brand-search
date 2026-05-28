@@ -8,6 +8,13 @@ interface Props {
   onDelete: (taskId: string) => void;
 }
 
+const STATUS_ACCENT: Record<string, string> = {
+  creating: "#d1d5db",
+  executing: "#5b5ef7",
+  completed: "#10b981",
+  failed: "#ef4444",
+};
+
 function calcDuration(created: string, completed: string | null): string {
   if (!completed) return "";
   const ms = new Date(completed).getTime() - new Date(created).getTime();
@@ -27,33 +34,34 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
     ? new Date(task.created_at).toLocaleString("zh-CN")
     : "";
   const duration = calcDuration(task.created_at, task.completed_at);
+  const accent = STATUS_ACCENT[task.status] ?? "#d1d5db";
 
   return (
     <div
+      className="card-hover"
       style={{
         padding: "16px 20px",
-        backgroundColor: "#fff",
-        borderRadius: 8,
-        border: "1px solid #f0f0f0",
+        backgroundColor: "var(--color-surface)",
+        borderRadius: "var(--radius-md)",
+        border: "1px solid var(--color-border)",
+        borderLeft: `3px solid ${accent}`,
         marginBottom: 12,
-        transition: "box-shadow 0.2s",
+        animation: "slide-up 0.35s ease both",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginRight: 12, overflow: "hidden" }}>
-          <span style={{ fontWeight: 500, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }}>
             {task.query}
           </span>
           {task.brand_keyword && (
             <span style={{
-              fontSize: 12,
-              color: "#1677ff",
-              backgroundColor: "#e6f4ff",
-              border: "1px solid #91caff",
-              borderRadius: 4,
-              padding: "1px 8px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--color-primary)",
+              backgroundColor: "var(--color-primary-light)",
+              borderRadius: 10,
+              padding: "2px 10px",
               whiteSpace: "nowrap",
               flexShrink: 0,
             }}>
@@ -68,7 +76,7 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
         <div style={{ marginBottom: 8 }}>
           <ProgressBar progress={task.progress} />
           {task.current_step && (
-            <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6 }}>
               {task.current_step}
             </div>
           )}
@@ -76,27 +84,51 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
       )}
 
       {task.status === "failed" && task.error_message && (
-        <div style={{ fontSize: 12, color: "#ff4d4f", marginBottom: 8, padding: "4px 8px", backgroundColor: "#fff2f0", borderRadius: 4 }}>
+        <div style={{
+          fontSize: 12,
+          color: "var(--color-error)",
+          marginBottom: 8,
+          padding: "6px 10px",
+          backgroundColor: "var(--color-error-light)",
+          borderRadius: "var(--radius-sm)",
+          fontWeight: 500,
+        }}>
           {task.error_message}
+        </div>
+      )}
+
+      {task.status === "completed" && task.brand_rank && (
+        <div style={{
+          fontSize: 12,
+          color: "var(--color-primary)",
+          marginBottom: 8,
+          padding: "6px 10px",
+          backgroundColor: "var(--color-primary-light)",
+          borderRadius: "var(--radius-sm)",
+          lineHeight: 1.7,
+          whiteSpace: "pre-line",
+          fontWeight: 500,
+        }}>
+          {task.brand_rank}
         </div>
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#bbb" }}>{timeStr}</span>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{timeStr}</span>
           {duration && (
-            <span style={{ fontSize: 12, color: "#8c8c8c" }}>
-              用时: {duration}
+            <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>
+              用时 {duration}
             </span>
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {task.status === "completed" && (
-            <button onClick={() => onViewDetail(task.id)} style={actionBtnStyle("#722ed1")}>
+            <button onClick={() => onViewDetail(task.id)} style={btnStyle("var(--color-primary)")}>
               查看详情
             </button>
           )}
-          <button onClick={() => onDelete(task.id)} style={actionBtnStyle("#ff4d4f")}>
+          <button onClick={() => onDelete(task.id)} style={btnStyle("var(--color-error)")}>
             删除
           </button>
         </div>
@@ -105,15 +137,16 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
   );
 }
 
-function actionBtnStyle(color: string): React.CSSProperties {
+function btnStyle(color: string): React.CSSProperties {
   return {
-    padding: "4px 12px",
+    padding: "5px 14px",
     fontSize: 12,
+    fontWeight: 500,
     color,
     backgroundColor: "transparent",
-    border: `1px solid ${color}`,
-    borderRadius: 4,
+    border: `1.5px solid ${color}`,
+    borderRadius: 20,
     cursor: "pointer",
-    transition: "all 0.2s",
+    transition: "all var(--transition)",
   };
 }

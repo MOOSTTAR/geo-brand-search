@@ -3,13 +3,15 @@ interface Props {
 }
 
 export default function ProgressBar({ progress }: Props) {
+  const done = progress >= 100;
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div
         style={{
           flex: 1,
           height: 6,
-          backgroundColor: "#f0f0f0",
+          backgroundColor: "var(--color-border)",
           borderRadius: 3,
           overflow: "hidden",
         }}
@@ -18,13 +20,25 @@ export default function ProgressBar({ progress }: Props) {
           style={{
             width: `${Math.min(progress, 100)}%`,
             height: "100%",
-            backgroundColor: progress >= 100 ? "#52c41a" : "#1890ff",
             borderRadius: 3,
-            transition: "width 0.3s ease",
+            transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+            background: done
+              ? "var(--color-success)"
+              : "var(--color-primary-gradient)",
+            backgroundSize: done ? undefined : "200% 100%",
+            animation: done ? undefined : "shimmer 2s linear infinite",
+            position: "relative",
           }}
         />
       </div>
-      <span style={{ fontSize: 12, color: "#999", minWidth: 32, textAlign: "right" }}>
+      <span style={{
+        fontSize: 12,
+        fontWeight: 600,
+        color: done ? "var(--color-success)" : "var(--color-primary)",
+        minWidth: 34,
+        textAlign: "right",
+        transition: "color var(--transition)",
+      }}>
         {progress}%
       </span>
     </div>
