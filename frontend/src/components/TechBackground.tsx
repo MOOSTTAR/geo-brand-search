@@ -2,33 +2,27 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 const KEYWORDS = [
-  // AI models & platforms
   "DeepSeek", "ChatGPT", "Claude", "Gemini", "GPT-5", "Grok",
   "Kimi", "豆包", "元宝", "文心一言", "通义千问", "百川",
   "Perplexity", "Copilot", "Gemma", "LLaMA", "Qwen", "Mistral",
-  "CommandR", "Cohere", "Anthropic", "OpenAI", "Moonshot",
-  // Core tech
+  "Anthropic", "OpenAI", "Moonshot", "Cohere", "StabilityAI",
+  "Midjourney", "Sora", "Suno", "Cursor", "Windsurf", "Bolt",
   "Transformer", "Attention", "RLHF", "Fine-tuning", "RAG",
   "Prompt", "Agent", "多模态", "推理", "蒸馏", "MoE",
   "Token", "Embedding", "VectorDB", "GPU", "TPU", "NPU",
-  "LangChain", "LlamaIndex", "CrewAI", "AutoGen",
-  // GEO / Search
-  "GEO", "GenerativeEngine", "品牌排名", "搜索意图",
+  "LangChain", "LlamaIndex", "CrewAI", "AutoGen", "Dify",
+  "GEO", "生成式引擎", "品牌排名", "搜索意图",
   "品牌提及", "信源提取", "排名分析", "SEO", "SGE",
-  "AnswerEngine", "SearchQuality", "BrandAuthority",
-  "生成式引擎", "搜索优化", "位置追踪",
-  // Brands
+  "AnswerEngine", "BrandAuthority", "搜索优化",
   "华为", "小米", "OPPO", "vivo", "苹果", "三星", "荣耀",
   "一加", "真我", "红米", "魅族", "联想", "摩托罗拉",
   "特斯拉", "比亚迪", "蔚来", "理想", "小鹏", "极氪",
   "大疆", "戴森", "索尼", "Bose", "追觅", "石头",
   "科沃斯", "云鲸", "美的", "格力", "海尔", "海信",
   "TCL", "创维", "方太", "老板", "西门子", "松下",
-  // More terms
-  "ContextWindow", "ChainOfThought", "ZeroShot",
-  "FewShot", "RL", "DL", "NLP", "CV", "ASR", "TTS",
   "LoRA", "QLoRA", "PEFT", "FlashAttention",
-  "AI搜索", "大模型", "语义理解", "知识图谱",
+  "AI搜索", "大模型", "语义理解", "知识图谱", "神经网络",
+  "AGI", "ASR", "TTS", "CV", "多智能体", "函数调用",
 ];
 
 type LetterDef = { char: string; colorTop: string; colorBot: string; glow: string };
@@ -52,7 +46,7 @@ function sampleLetter(char: string, w: number, h: number): { x: number; y: numbe
 
   const imageData = ctx.getImageData(0, 0, w, h);
   const points: { x: number; y: number }[] = [];
-  const step = 5;
+  const step = 6;
   for (let y = 0; y < h; y += step) {
     for (let x = 0; x < w; x += step) {
       const i = (y * w + x) * 4;
@@ -142,7 +136,7 @@ export default function TechBackground() {
     LETTERS.forEach((ld, li) => {
       const pts = sampleLetter(ld.char, letterW, letterH);
       // Thin to target ~300 sprites per letter
-      const target = 350;
+      const target = 220;
       const thinRate = Math.max(1, Math.floor(pts.length / target));
       const thinned = pts.filter((_, i) => i % thinRate === 0);
       // Shuffle so different words go to different positions
@@ -230,16 +224,16 @@ export default function TechBackground() {
       // Random jitter: shake a few sprites each frame
       const now = performance.now();
       const kids = group.children as THREE.Sprite[];
-      const jitterCount = Math.floor(kids.length * 0.03); // 3% of sprites
+      const jitterCount = Math.floor(kids.length * 0.01);
       for (let j = 0; j < jitterCount; j++) {
         const s = kids[Math.floor(Math.random() * kids.length)];
         const ud = s.userData;
-        if (now - ud.jitterTimer > 200 + Math.random() * 400) {
+        if (now - ud.jitterTimer > 300 + Math.random() * 600) {
           ud.jitterTimer = now;
-          s.position.x = ud.originalX + (Math.random() - 0.5) * 0.12;
-          s.position.y = ud.originalY + (Math.random() - 0.5) * 0.12;
-          s.position.z = ud.originalZ + (Math.random() - 0.5) * 0.08;
-        } else if (now - ud.jitterTimer > 120) {
+          s.position.x = ud.originalX + (Math.random() - 0.5) * 0.05;
+          s.position.y = ud.originalY + (Math.random() - 0.5) * 0.05;
+          s.position.z = ud.originalZ + (Math.random() - 0.5) * 0.04;
+        } else if (now - ud.jitterTimer > 150) {
           // Reset to original
           s.position.x += (ud.originalX - s.position.x) * 0.3;
           s.position.y += (ud.originalY - s.position.y) * 0.3;
