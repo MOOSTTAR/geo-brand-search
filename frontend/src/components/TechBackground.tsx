@@ -193,14 +193,6 @@ export default function TechBackground() {
 
     const onMouseUp = () => { isDragging = false; };
 
-    const onWheel = (e: WheelEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (["BUTTON", "INPUT", "A", "SELECT", "TEXTAREA"].includes(tag)) return;
-      e.preventDefault();
-      camera.position.z += e.deltaY * 0.01;
-      camera.position.z = Math.max(10, Math.min(40, camera.position.z));
-    };
-
     const onResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -212,7 +204,6 @@ export default function TechBackground() {
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-    window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("resize", onResize);
 
     let animId: number;
@@ -237,7 +228,6 @@ export default function TechBackground() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("wheel", onWheel);
       window.removeEventListener("resize", onResize);
       renderer.dispose();
       container.removeChild(renderer.domElement);

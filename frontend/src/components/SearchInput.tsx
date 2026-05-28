@@ -39,6 +39,11 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
     );
   };
 
+  const allSelected = platforms.length === AVAILABLE_PLATFORMS.length;
+  const toggleAll = () => {
+    setPlatforms(allSelected ? ["deepseek"] : AVAILABLE_PLATFORMS.map((p) => p.key));
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = query.trim();
@@ -158,9 +163,28 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
 
         {/* AI Platform selector */}
         <div style={{ textAlign: "center" }}>
-          <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500, marginBottom: 10, display: "block" }}>
-            选择 AI 平台
-          </span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500 }}>
+              选择 AI 平台
+            </span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: allSelected ? "var(--color-text-muted)" : "var(--color-primary)",
+                backgroundColor: "transparent",
+                border: `1px solid ${allSelected ? "var(--color-border)" : "var(--color-primary)"}`,
+                borderRadius: 12,
+                padding: "1px 10px",
+                cursor: "pointer",
+                transition: "all var(--transition)",
+              }}
+            >
+              {allSelected ? "取消全选" : "一键全选"}
+            </button>
+          </div>
           <div style={{ display: "flex", justifyContent: "center", gap: 20 }}>
             {AVAILABLE_PLATFORMS.map((p) => {
               const selected = platforms.includes(p.key);
