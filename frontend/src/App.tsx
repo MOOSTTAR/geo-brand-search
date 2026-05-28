@@ -11,6 +11,7 @@ import ScreenshotViewer from "./components/ScreenshotViewer";
 import ResponseViewer from "./components/ResponseViewer";
 import RankingViewer from "./components/RankingViewer";
 import ToastContainer, { showToast } from "./components/Toast";
+import TechBackground from "./components/TechBackground";
 
 function parsePath(): string | null {
   const seg = window.location.pathname.replace(/^\/+|\/+$/g, "");
@@ -176,6 +177,7 @@ export default function App() {
 
   return (
     <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
+      <TechBackground />
       {activeTab === "search" && (
         <SearchInput onSubmit={handleSubmit} disabled={submitting} />
       )}

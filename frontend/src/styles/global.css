@@ -34,7 +34,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-text);
-  background-color: var(--color-bg);
+  background-color: transparent;
 }
 
 button {

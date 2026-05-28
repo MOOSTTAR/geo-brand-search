@@ -15,7 +15,7 @@ interface Props {
 
 export default function Layout({ wsConnected, activeTab, onTabChange, children }: Props) {
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)" }}>
+    <div style={{ minHeight: "100vh", position: "relative" }}>
       <header
         style={{
           padding: "0 24px",
@@ -23,7 +23,8 @@ export default function Layout({ wsConnected, activeTab, onTabChange, children }
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          background: "linear-gradient(135deg, #ffffff 0%, #fafaff 100%)",
+          background: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--color-border)",
           position: "relative",
           zIndex: 100,
@@ -105,7 +106,7 @@ export default function Layout({ wsConnected, activeTab, onTabChange, children }
         </div>
       </header>
 
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: "28px 16px", animation: "fade-in 0.35s ease" }}>
+      <main style={{ maxWidth: 800, margin: "0 auto", padding: "28px 16px", animation: "fade-in 0.35s ease", position: "relative", zIndex: 1 }}>
         {children}
       </main>
     </div>
