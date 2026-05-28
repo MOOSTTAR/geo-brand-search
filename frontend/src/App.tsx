@@ -20,6 +20,7 @@ function parsePath(): string | null {
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => parsePath() ? "tasks" : "search");
   const [detailTaskId, setDetailTaskId] = useState<string | null>(parsePath);
   const { screenshotUrl, openScreenshot, closeScreenshot } = useScreenshot();
   const [responseText, setResponseText] = useState<string | null>(null);
@@ -39,7 +40,11 @@ export default function App() {
       window.history.pushState(null, "", target);
     }
 
-    const onPop = () => setDetailTaskId(parsePath());
+    const onPop = () => {
+      const id = parsePath();
+      setDetailTaskId(id);
+      if (id) setActiveTab("tasks");
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [detailTaskId]);
@@ -113,10 +118,10 @@ export default function App() {
 
   const { isConnected } = useWebSocket(handleWsMessage);
 
-  const handleSubmit = useCallback(async (query: string, brandKeyword: string) => {
+  const handleSubmit = useCallback(async (_query: string, _brandKeyword: string, _platforms: string[]) => {
     setSubmitting(true);
     try {
-      await createTask(query, brandKeyword || undefined);
+      await createTask(_query, _brandKeyword || undefined);
       showToast("任务已创建", "success");
     } catch {
       showToast("创建任务失败", "error");
@@ -131,10 +136,19 @@ export default function App() {
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       if (detailTaskId === taskId) setDetailTaskId(null);
       showToast("删除成功", "success");
-    } catch (err) {
+    } catch {
       showToast("删除失败", "error");
     }
   }, [detailTaskId]);
+
+  const handleViewDetail = useCallback((taskId: string) => {
+    setDetailTaskId(taskId);
+    setActiveTab("tasks");
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setDetailTaskId(null);
+  }, []);
 
   const detailTask = detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? null : null;
 
@@ -155,26 +169,63 @@ export default function App() {
     }
   }, [tasks]);
 
+  const handleTabChange = useCallback((key: string) => {
+    setActiveTab(key);
+    if (key !== "tasks") setDetailTaskId(null);
+  }, []);
+
   return (
-    <Layout wsConnected={isConnected}>
-      {detailTask ? (
-        <TaskDetail
-          task={detailTask}
-          onViewScreenshot={openScreenshot}
-          onViewResponse={handleViewResponse}
-          onViewRanking={handleViewRanking}
-          onBack={() => setDetailTaskId(null)}
-        />
-      ) : (
+    <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
+      {activeTab === "search" && (
         <>
           <SearchInput onSubmit={handleSubmit} disabled={submitting} />
-          <TaskList
-            tasks={tasks}
-            onViewDetail={setDetailTaskId}
-            onDelete={handleDelete}
-          />
+          {tasks.length > 0 && (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: "#666", marginBottom: 12 }}>
+                最近任务
+              </h3>
+              <TaskList
+                tasks={tasks.slice(0, 5)}
+                onViewDetail={handleViewDetail}
+                onDelete={handleDelete}
+              />
+            </div>
+          )}
         </>
       )}
+
+      {activeTab === "tasks" && (
+        detailTask ? (
+          <TaskDetail
+            task={detailTask}
+            onViewScreenshot={openScreenshot}
+            onViewResponse={handleViewResponse}
+            onViewRanking={handleViewRanking}
+            onBack={handleBack}
+          />
+        ) : (
+          <TaskList
+            tasks={tasks}
+            onViewDetail={handleViewDetail}
+            onDelete={handleDelete}
+          />
+        )
+      )}
+
+      {activeTab === "profile" && (
+        <div style={{
+          textAlign: "center",
+          padding: 80,
+          color: "#999",
+          fontSize: 15,
+          backgroundColor: "#fff",
+          borderRadius: 8,
+          border: "1px solid #f0f0f0",
+        }}>
+          暂未开发
+        </div>
+      )}
+
       <ScreenshotViewer url={screenshotUrl} onClose={closeScreenshot} />
       <ResponseViewer
         text={responseText}
