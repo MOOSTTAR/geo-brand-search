@@ -192,6 +192,9 @@ export default function TechBackground() {
     const onMouseUp = () => {
       isDragging = false;
       canvas.style.cursor = "grab";
+      // Normalize to [-PI, PI] so return takes shortest path
+      group.rotation.x = ((group.rotation.x + Math.PI) % (Math.PI * 2)) - Math.PI;
+      group.rotation.y = ((group.rotation.y + Math.PI) % (Math.PI * 2)) - Math.PI;
     };
 
     const onResize = () => {
