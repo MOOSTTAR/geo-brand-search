@@ -64,16 +64,22 @@ function sampleLetter(char: string, w: number, h: number): { x: number; y: numbe
   return points;
 }
 
-function lerpColor(hexA: string, hexB: string, t: number): string {
+function colorWithVariance(hexA: string, hexB: string, t: number): string {
   const ah = parseInt(hexA.slice(1), 16);
   const bh = parseInt(hexB.slice(1), 16);
   const ar = (ah >> 16) & 0xff, ag = (ah >> 8) & 0xff, ab = ah & 0xff;
   const br = (bh >> 16) & 0xff, bg = (bh >> 8) & 0xff, bb = bh & 0xff;
-  const R = Math.round(ar + (br - ar) * t);
-  const G = Math.round(ag + (bg - ag) * t);
-  const B = Math.round(ab + (bb - ab) * t);
+  const baseR = ar + (br - ar) * t;
+  const baseG = ag + (bg - ag) * t;
+  const baseB = ab + (bb - ab) * t;
+  // ±18 random offset within the same color family
+  const v = 18;
+  const R = Math.round(clamp(baseR + (Math.random() - 0.5) * v * 2, 0, 255));
+  const G = Math.round(clamp(baseG + (Math.random() - 0.5) * v * 2, 0, 255));
+  const B = Math.round(clamp(baseB + (Math.random() - 0.5) * v * 2, 0, 255));
   return `rgb(${R},${G},${B})`;
 }
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 
 function createWordSprite(word: string, color: string, glow: string): THREE.Sprite {
   const canvas = document.createElement("canvas");
@@ -145,7 +151,7 @@ export default function TechBackground() {
         const word = words[pi % words.length];
 
         const t = (pt.y + letterH / 2) / letterH;
-        const color = lerpColor(ld.colorTop, ld.colorBot, 1 - t);
+        const color = colorWithVariance(ld.colorTop, ld.colorBot, 1 - t);
         const sprite = createWordSprite(word, color, ld.glow);
 
         const x = pt.x * scale + (li - 1) * spacing * scale;
