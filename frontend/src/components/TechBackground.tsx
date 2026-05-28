@@ -120,7 +120,10 @@ export default function TechBackground() {
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
+    const canvas = renderer.domElement;
+    canvas.style.cursor = "grab";
+    canvas.style.pointerEvents = "auto";
+    container.appendChild(canvas);
 
     const group = new THREE.Group();
 
@@ -172,7 +175,7 @@ export default function TechBackground() {
       velocity.x = 0;
       velocity.y = 0;
       prevMouse = { x: e.clientX, y: e.clientY };
-      container.style.cursor = "grabbing";
+      canvas.style.cursor = "grabbing";
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -188,7 +191,7 @@ export default function TechBackground() {
 
     const onMouseUp = () => {
       isDragging = false;
-      container.style.cursor = "grab";
+      canvas.style.cursor = "grab";
     };
 
     const onResize = () => {
@@ -239,7 +242,7 @@ export default function TechBackground() {
   return (
     <div
       ref={containerRef}
-      style={{ position: "fixed", inset: 0, zIndex: 0, cursor: "grab" }}
+      style={{ position: "fixed", inset: 0, zIndex: 0 }}
     />
   );
 }
