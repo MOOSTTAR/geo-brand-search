@@ -2,33 +2,74 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 const KEYWORDS = [
-  // AI / Model
   "DeepSeek", "ChatGPT", "Claude", "Gemini", "LLM", "GPT-5",
   "Transformer", "Attention", "RLHF", "Fine-tuning", "RAG",
   "Prompt", "Agent", "多模态", "推理", "蒸馏", "MoE",
-  // GEO / Search
   "GEO", "生成式引擎优化", "品牌排名", "搜索意图",
   "品牌提及", "信源", "排名分析", "SEO", "SGE",
   "Answer Engine", "Search Quality", "Brand Authority",
-  // AI Platform
   "Perplexity", "Kimi", "豆包", "文心一言", "通义千问",
-  "Copilot", "Bard", "Meta AI", "Grok",
-  // Tech Terms
-  "NLP", "Embedding", "Token", "Context Window",
-  "Chain-of-Thought", "Zero-shot", "Few-shot",
-  "RL", "DL", "Vector DB",
-  // Brand
+  "Copilot", "Grok", "NLP", "Embedding", "Token",
+  "Context Window", "Chain-of-Thought", "Zero-shot",
+  "Few-shot", "RL", "DL", "Vector DB",
   "华为", "小米", "OPPO", "vivo", "苹果", "三星",
   "特斯拉", "比亚迪", "大疆", "戴森", "索尼",
 ];
 
-function createWordSprite(word: string, color: string): THREE.Sprite {
+type LetterDef = { char: string; colorTop: string; colorBot: string; glow: string };
+
+const LETTERS: LetterDef[] = [
+  { char: "G", colorTop: "#d1d5db", colorBot: "#6b7280", glow: "rgba(156,163,175,0.3)" },
+  { char: "E", colorTop: "#bae6fd", colorBot: "#0ea5e9", glow: "rgba(56,189,248,0.35)" },
+  { char: "O", colorTop: "#93c5fd", colorBot: "#1d4ed8", glow: "rgba(59,130,246,0.4)" },
+];
+
+function sampleLetter(char: string, width: number, height: number, density: number): { x: number; y: number }[] {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff";
+  ctx.font = `bold ${height * 0.85}px "Arial Black", "Segoe UI Black", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(char, width / 2, height / 2);
+
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const points: { x: number; y: number }[] = [];
+  const step = Math.max(1, Math.floor(1 / density));
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const i = (y * width + x) * 4;
+      if (imageData.data[i + 3] > 128) {
+        points.push({ x: x - width / 2, y: height / 2 - y });
+      }
+    }
+  }
+  return points;
+}
+
+function lerpColor(a: string, b: string, t: number): string {
+  const ah = parseInt(a.slice(1), 16);
+  const bh = parseInt(b.slice(1), 16);
+  const ar = (ah >> 16) & 0xff, ag = (ah >> 8) & 0xff, ab = ah & 0xff;
+  const br = (bh >> 16) & 0xff, bg = (bh >> 8) & 0xff, bb = bh & 0xff;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const b = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+function createWordSprite(word: string, color: string, glow: string): THREE.Sprite {
   const canvas = document.createElement("canvas");
   const size = 256;
   canvas.width = size;
   canvas.height = size / 4;
   const ctx = canvas.getContext("2d")!;
 
+  // Glow effect
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 8;
   ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = color;
   ctx.textAlign = "center";
@@ -40,11 +81,11 @@ function createWordSprite(word: string, color: string): THREE.Sprite {
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.92,
     depthWrite: false,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(2.2, 0.55, 1);
+  sprite.scale.set(1.8, 0.45, 1);
   sprite.userData = { word };
   return sprite;
 }
@@ -59,74 +100,52 @@ export default function TechBackground() {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    // Scene
     const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, width / height, 1, 100);
+    camera.position.z = 22;
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(60, width / height, 1, 100);
-    camera.position.z = 14;
-
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Lights
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambient);
-
-    // Create word sprites on a sphere
     const group = new THREE.Group();
-    const radius = 5;
-    const colors = [
-      "rgba(91,94,247,0.9)",  // primary
-      "rgba(139,92,246,0.9)", // purple
-      "rgba(16,185,129,0.85)", // green
-      "rgba(245,158,11,0.85)", // amber
-      "rgba(59,130,246,0.85)", // blue
-      "rgba(236,72,153,0.85)", // pink
-      "rgba(99,102,241,0.85)", // indigo
-      "rgba(148,163,184,0.8)", // slate
-    ];
 
-    KEYWORDS.forEach((word, i) => {
-      // Fibonacci sphere distribution
-      const phi = Math.acos(1 - 2 * (i + 0.5) / KEYWORDS.length);
-      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-      const x = radius * Math.sin(phi) * Math.cos(theta);
-      const y = radius * Math.sin(phi) * Math.sin(theta);
-      const z = radius * Math.cos(phi);
+    // Letter dimensions
+    const letterW = 180;
+    const letterH = 260;
+    const density = 0.5;
+    const spacing = letterW * 1.05;
+    const totalW = spacing * 3;
+    const scale = 0.024;
 
-      const color = colors[i % colors.length];
-      const sprite = createWordSprite(word, color);
-      sprite.position.set(x, y, z);
-      group.add(sprite);
+    let wordIdx = 0;
+
+    LETTERS.forEach((ld, li) => {
+      const points = sampleLetter(ld.char, letterW, letterH, density);
+      // Thin out + add slight Z variation
+      const sampled = points.sort(() => Math.random() - 0.5);
+
+      sampled.forEach((pt) => {
+        if (wordIdx >= KEYWORDS.length) return;
+        const word = KEYWORDS[wordIdx++ % KEYWORDS.length];
+
+        // Gradient: top to bottom
+        const t = (pt.y + letterH / 2) / letterH; // 0(bottom) to 1(top)
+        const color = lerpColor(ld.colorTop, ld.colorBot, 1 - t);
+        const sprite = createWordSprite(word, color, ld.glow);
+
+        const x = pt.x * scale + (li - 1) * spacing * scale;
+        const y = pt.y * scale;
+        const z = (Math.random() - 0.5) * 0.6;
+        sprite.position.set(x, y, z);
+        group.add(sprite);
+      });
     });
-    group.position.y = 3;
+
     scene.add(group);
 
-    // Stars / particles in background
-    const starsGeo = new THREE.BufferGeometry();
-    const starsCount = 600;
-    const starsPos = new Float32Array(starsCount * 3);
-    for (let i = 0; i < starsCount; i++) {
-      starsPos[i * 3] = (Math.random() - 0.5) * 50;
-      starsPos[i * 3 + 1] = (Math.random() - 0.5) * 50;
-      starsPos[i * 3 + 2] = (Math.random() - 0.5) * 50;
-    }
-    starsGeo.setAttribute("position", new THREE.BufferAttribute(starsPos, 3));
-    const starsMat = new THREE.PointsMaterial({
-      color: 0x8b9cf6,
-      size: 0.04,
-      transparent: true,
-      opacity: 0.7,
-      depthWrite: false,
-    });
-    const stars = new THREE.Points(starsGeo, starsMat);
-    scene.add(stars);
-
-    // Mouse interaction: click-drag to rotate + wheel zoom
+    // Mouse interaction
     let isDragging = false;
     let prevMouse = { x: 0, y: 0 };
     let velocity = { x: 0, y: 0 };
@@ -145,10 +164,10 @@ export default function TechBackground() {
       if (!isDragging) return;
       const dx = e.clientX - prevMouse.x;
       const dy = e.clientY - prevMouse.y;
-      group.rotation.y += dx * 0.005;
-      group.rotation.x += dy * 0.005;
-      velocity.y = dx * 0.005;
-      velocity.x = dy * 0.005;
+      group.rotation.y += dx * 0.003;
+      group.rotation.x += dy * 0.003;
+      velocity.y = dx * 0.003;
+      velocity.x = dy * 0.003;
       prevMouse = { x: e.clientX, y: e.clientY };
     };
 
@@ -159,7 +178,7 @@ export default function TechBackground() {
       if (["BUTTON", "INPUT", "A", "SELECT", "TEXTAREA"].includes(tag)) return;
       e.preventDefault();
       camera.position.z += e.deltaY * 0.01;
-      camera.position.z = Math.max(5, Math.min(30, camera.position.z));
+      camera.position.z = Math.max(10, Math.min(40, camera.position.z));
     };
 
     const onResize = () => {
@@ -176,28 +195,20 @@ export default function TechBackground() {
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("resize", onResize);
 
-    // Animation loop
     let animId: number;
     const animate = () => {
       animId = requestAnimationFrame(animate);
 
-      // Auto-rotate when idle, drag when pressed
       if (isDragging) {
-        // rotation applied during mousemove
+        // rotation during mousemove
       } else if (Math.abs(velocity.x) > 0.0001 || Math.abs(velocity.y) > 0.0001) {
-        // Inertia decay after drag release
         group.rotation.y += velocity.y;
         group.rotation.x += velocity.x;
         velocity.x *= 0.95;
         velocity.y *= 0.95;
       } else {
-        // Auto random rotation
-        group.rotation.y += 0.002;
-        group.rotation.x += 0.0005;
+        group.rotation.y += 0.003;
       }
-
-      stars.rotation.y += 0.0003;
-      stars.rotation.x += 0.0002;
 
       renderer.render(scene, camera);
     };
@@ -218,13 +229,7 @@ export default function TechBackground() {
   return (
     <div
       ref={containerRef}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: "none",
-        background: "radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1a 60%, #080812 100%)",
-      }}
+      style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}
     />
   );
 }
