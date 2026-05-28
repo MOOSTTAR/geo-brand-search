@@ -25,41 +25,47 @@ export default function Layout({ wsConnected, activeTab, onTabChange, children }
           justifyContent: "space-between",
           backgroundColor: "#fff",
           borderBottom: "1px solid #f0f0f0",
+          position: "relative",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: "#333", whiteSpace: "nowrap" }}>
-            GEO 品牌查询
-          </h1>
+        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: "#333", whiteSpace: "nowrap" }}>
+          GEO 品牌查询
+        </h1>
 
-          {/* Tab navigation */}
-          <nav style={{ display: "flex", gap: 0, height: 52 }}>
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => onTabChange(tab.key)}
-                  style={{
-                    padding: "0 20px",
-                    height: 52,
-                    fontSize: 14,
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? "#1890ff" : "#666",
-                    backgroundColor: "transparent",
-                    border: "none",
-                    borderBottom: isActive ? "2px solid #1890ff" : "2px solid transparent",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        {/* Tab navigation — centered */}
+        <nav style={{
+          display: "flex",
+          gap: 0,
+          height: 52,
+          position: "absolute",
+          left: "50%",
+          transform: "translateX(-50%)",
+        }}>
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => onTabChange(tab.key)}
+                style={{
+                  padding: "0 20px",
+                  height: 52,
+                  fontSize: 14,
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? "#1890ff" : "#666",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom: isActive ? "2px solid #1890ff" : "2px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <span
