@@ -170,40 +170,38 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
               onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)")}
               onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
             >
-              {/* Logo */}
-              {src.logo && (
-                <img
-                  src={src.logo}
-                  alt=""
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 4,
-                    flexShrink: 0,
-                    marginTop: 2,
-                  }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              )}
+              {/* Logo + cite column */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, minWidth: 28 }}>
+                {src.logo ? (
+                  <img
+                    src={src.logo}
+                    alt=""
+                    style={{ width: 24, height: 24, borderRadius: 4 }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <div style={{ width: 24, height: 24 }} />
+                )}
+                {src.cite && (
+                  <span style={{
+                    fontSize: 10,
+                    color: "#999",
+                    backgroundColor: "#f5f5f5",
+                    borderRadius: 3,
+                    padding: "0 4px",
+                    lineHeight: "16px",
+                    textAlign: "center",
+                  }}>
+                    [{src.cite}]
+                  </span>
+                )}
+              </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 14, fontWeight: 500, color: "#1a1a1a", lineHeight: 1.4 }}>
                     {src.title || src.url}
                   </span>
-                  {src.cite && (
-                    <span style={{
-                      fontSize: 11,
-                      color: "#999",
-                      backgroundColor: "#f5f5f5",
-                      borderRadius: 3,
-                      padding: "0 4px",
-                      lineHeight: "18px",
-                      flexShrink: 0,
-                    }}>
-                      [{src.cite}]
-                    </span>
-                  )}
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>

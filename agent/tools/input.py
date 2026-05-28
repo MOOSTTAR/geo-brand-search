@@ -732,45 +732,64 @@ async def _extract_sources(page) -> str:
                         logo = imgs[0].getAttribute('src') || '';
                     }
 
+                    // Try to extract cite from DOM <sup> element before text parsing
+                    const supEls = card.querySelectorAll('sup');
+                    for (const sup of supEls) {
+                        const st = (sup.textContent || '').trim();
+                        const sm = st.match(/^(\\d{1,2})$/);
+                        if (sm) { cite = sm[1]; break; }
+                    }
+                    // Fallback: look for cite badge elements
+                    if (!cite) {
+                        const badges = card.querySelectorAll('[class*="cite"], [class*="reference"], [class*="source-index"], [class*="badge"]');
+                        for (const b of badges) {
+                            const bt = (b.textContent || '').trim();
+                            const bm = bt.match(/^(\\d{1,2})$/);
+                            if (bm) { cite = bm[1]; break; }
+                        }
+                    }
+
                     const rawText = (a.textContent || '').trim();
 
                     // DeepSeek concatenates: [site_name][date][cite_number][title]
                     // Strategy: find date first, then look for a year pattern (\d{4}年) after it.
                     // Digits between date and year → cite number. Year + rest → title.
-                    let siteName = '', date = '', cite = '', title = '', snippet = '';
+                    let siteName = '', date = '', title = '', snippet = '';
 
                     const dm = rawText.match(/\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/);
                     if (dm) {
                         date = dm[0];
                         const di = dm.index;
                         siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
-                        const after = rawText.substring(di + date.length);
+                        let after = rawText.substring(di + date.length);
 
-                        // Try to find a 4-digit year pattern: digits between date and year = cite
+                        // Strip known cite number from beginning if we got it from DOM
+                        if (cite && after.indexOf(cite) === 0) {
+                            after = after.substring(cite.length).trim();
+                        }
+
+                        // Try to find a 4-digit year pattern: digits between date and year = cite (fallback)
                         const yearRe = /\\d{4}年/;
                         const ym = after.match(yearRe);
                         if (ym && ym.index > 0) {
                             const prefix = after.substring(0, ym.index);
-                            // Prefix should be just the cite number (1-2 digits)
                             const cm = prefix.match(/^(\\d{1,2})$/);
-                            if (cm) {
+                            if (cm && !cite) {
                                 cite = cm[1];
-                                title = after.substring(ym.index).trim();
-                            } else {
-                                title = after.trim();
                             }
+                            title = after.substring(ym.index).trim();
                         } else if (ym && ym.index === 0) {
-                            // Year at position 0 → no cite, title starts with year
                             title = after.trim();
                         } else {
-                            // No year pattern → cite is leading digits (if any)
-                            const cm = after.match(/^(\\d{1,2})/);
-                            if (cm) {
-                                cite = cm[1];
-                                title = after.substring(cm[0].length).trim();
-                            } else {
-                                title = after.trim();
+                            // No year pattern → cite is leading digits (if any, and not from DOM)
+                            if (!cite) {
+                                const cm = after.match(/^(\\d{1,2})/);
+                                if (cm) {
+                                    cite = cm[1];
+                                    after = after.substring(cm[0].length);
+                                }
                             }
+                            title = after.trim();
                         }
                     } else {
                         title = rawText;
