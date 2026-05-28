@@ -735,8 +735,8 @@ async def _extract_sources(page) -> str:
                     const rawText = (a.textContent || '').trim();
 
                     // DeepSeek concatenates: [site_name][date][cite_number][title+snippet]
-                    // Parse with regex: non-greedy prefix, date YYYY/MM/DD, optional cite (1-2 digits NOT followed by another digit), rest
-                    const parseRe = /^(.+?)(\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})(?:(\\d{1,2})(?!\\d))?(.+)$/;
+                    // Parse with regex: non-greedy prefix, date YYYY/MM/DD, optional cite number, rest
+                    const parseRe = /^(.+?)(\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})(\\d{1,2})?(.+)$/;
                     const pm = rawText.match(parseRe);
 
                     let siteName = '', date = '', cite = '', title = '', snippet = '';
@@ -746,6 +746,13 @@ async def _extract_sources(page) -> str:
                         date = pm[2];
                         cite = (pm[3] || '').trim();
                         title = (pm[4] || '').trim();
+
+                        // Fix: if cite ate a digit from a year in the title
+                        // e.g. "2026/05/25" + cite="2" + title="026年xxx" → merge back
+                        if (cite && /^\\d{3}年/.test(title)) {
+                            title = cite + title;
+                            cite = '';
+                        }
                     } else {
                         // Fallback: try to extract date anywhere in text
                         const dm = rawText.match(/\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/);
@@ -754,10 +761,15 @@ async def _extract_sources(page) -> str:
                             const di = rawText.indexOf(date);
                             siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
                             const after = rawText.substring(di + date.length);
-                            const cm = after.match(/^(\\d{1,2})(?!\\d)/);
+                            const cm = after.match(/^(\\d{1,2})/);
                             if (cm) {
                                 cite = cm[1];
                                 title = after.substring(cm[0].length).trim();
+                                // Same fix: detect truncated year
+                                if (/^\\d{3}年/.test(title)) {
+                                    title = cite + title;
+                                    cite = '';
+                                }
                             } else {
                                 title = after.trim();
                             }
