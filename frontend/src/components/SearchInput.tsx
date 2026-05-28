@@ -60,27 +60,36 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
       minHeight: "calc(100vh - 140px)",
       animation: "slide-down 0.4s ease",
     }}>
-      {/* Hero title */}
-      <h2 style={{
-        fontSize: 26,
-        fontWeight: 700,
-        color: "var(--color-text)",
-        marginBottom: 8,
-        textAlign: "center",
+      {/* Card wrapper */}
+      <div style={{
+        backgroundColor: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(16px)",
+        borderRadius: 20,
+        padding: "40px 44px 32px",
+        boxShadow: "0 25px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.1)",
+        maxWidth: 600,
+        width: "100%",
       }}>
-        品牌查询
-      </h2>
-      <p style={{
-        fontSize: 14,
-        color: "var(--color-text-muted)",
-        marginBottom: 36,
-        textAlign: "center",
-        lineHeight: 1.7,
-      }}>
-        输入搜索问题，AI 自动分析品牌排名并提取信源
-      </p>
+        <h2 style={{
+          fontSize: 24,
+          fontWeight: 700,
+          color: "var(--color-text)",
+          marginBottom: 8,
+          textAlign: "center",
+        }}>
+          品牌查询
+        </h2>
+        <p style={{
+          fontSize: 14,
+          color: "var(--color-text-muted)",
+          marginBottom: 32,
+          textAlign: "center",
+          lineHeight: 1.7,
+        }}>
+          输入搜索问题，AI 自动分析品牌排名并提取信源
+        </p>
 
-      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 560 }}>
+        <form onSubmit={handleSubmit} style={{ width: "100%" }}>
         {/* Query input */}
         <div style={{ marginBottom: 12 }}>
           <input
@@ -190,7 +199,8 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
             })}
           </div>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
