@@ -125,41 +125,35 @@ export default function TechBackground() {
     const stars = new THREE.Points(starsGeo, starsMat);
     scene.add(stars);
 
-    // Mouse interaction: parallax tilt + drag to rotate + wheel zoom
-    let mouseX = 0, mouseY = 0;
-    let targetRX = 0, targetRY = 0;
+    // Mouse interaction: click-drag to rotate + wheel zoom
     let isDragging = false;
     let prevMouse = { x: 0, y: 0 };
-    let dragVel = { x: 0, y: 0 };
-    let dragRX = 0, dragRY = 0;
-
-    const onMouseMove = (e: MouseEvent) => {
-      // Parallax tilt
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
-      mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
-
-      if (isDragging) {
-        const dx = e.clientX - prevMouse.x;
-        const dy = e.clientY - prevMouse.y;
-        dragVel.y = dx * 0.005;
-        dragVel.x = dy * 0.005;
-        prevMouse = { x: e.clientX, y: e.clientY };
-      }
-    };
+    let velocity = { x: 0, y: 0 };
 
     const onMouseDown = (e: MouseEvent) => {
-      // Only drag on non-interactive elements
       const tag = (e.target as HTMLElement).tagName;
       if (["BUTTON", "INPUT", "A", "SELECT", "TEXTAREA"].includes(tag)) return;
       if ((e.target as HTMLElement).closest("button, input, a, select, textarea")) return;
       isDragging = true;
+      velocity.x = 0;
+      velocity.y = 0;
+      prevMouse = { x: e.clientX, y: e.clientY };
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevMouse.x;
+      const dy = e.clientY - prevMouse.y;
+      group.rotation.y += dx * 0.005;
+      group.rotation.x += dy * 0.005;
+      velocity.y = dx * 0.005;
+      velocity.x = dy * 0.005;
       prevMouse = { x: e.clientX, y: e.clientY };
     };
 
     const onMouseUp = () => { isDragging = false; };
 
     const onWheel = (e: WheelEvent) => {
-      // Only zoom when not on a scrollable element
       const tag = (e.target as HTMLElement).tagName;
       if (["BUTTON", "INPUT", "A", "SELECT", "TEXTAREA"].includes(tag)) return;
       e.preventDefault();
@@ -175,8 +169,8 @@ export default function TechBackground() {
       renderer.setSize(w, h);
     };
 
-    window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("resize", onResize);
@@ -186,22 +180,12 @@ export default function TechBackground() {
     const animate = () => {
       animId = requestAnimationFrame(animate);
 
-      // Smooth parallax tilt toward mouse
-      targetRX = mouseY * 0.15 + dragRX;
-      targetRY = mouseX * 0.15 + dragRY;
-      group.rotation.x += (targetRX - group.rotation.x) * 0.03;
-      group.rotation.y += (targetRY - group.rotation.y) * 0.03;
-
-      // Auto rotation
-      group.rotation.y += 0.0015;
-      group.rotation.x += 0.0003;
-
-      // Drag velocity decay
+      // Inertia decay after drag release
       if (!isDragging) {
-        dragRX += dragVel.x;
-        dragRY += dragVel.y;
-        dragVel.x *= 0.93;
-        dragVel.y *= 0.93;
+        group.rotation.y += velocity.y;
+        group.rotation.x += velocity.x;
+        velocity.x *= 0.95;
+        velocity.y *= 0.95;
       }
 
       stars.rotation.y += 0.0003;
