@@ -35,6 +35,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-text);
   background-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 button {
