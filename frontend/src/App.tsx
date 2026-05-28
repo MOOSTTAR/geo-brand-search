@@ -177,7 +177,7 @@ export default function App() {
 
   return (
     <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
-      <TechBackground />
+      {activeTab === "search" && <TechBackground />}
       {activeTab === "search" && (
         <SearchInput onSubmit={handleSubmit} disabled={submitting} />
       )}

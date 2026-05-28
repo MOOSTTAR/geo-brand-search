@@ -15,7 +15,7 @@ interface Props {
 
 export default function Layout({ wsConnected, activeTab, onTabChange, children }: Props) {
   return (
-    <div style={{ minHeight: "100vh", position: "relative" }}>
+    <div style={{ minHeight: "100vh", position: "relative", backgroundColor: "var(--color-bg)" }}>
       <header
         style={{
           padding: "0 24px",
