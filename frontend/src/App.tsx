@@ -12,10 +12,15 @@ import ResponseViewer from "./components/ResponseViewer";
 import RankingViewer from "./components/RankingViewer";
 import ToastContainer, { showToast } from "./components/Toast";
 
+function parsePath(): string | null {
+  const seg = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  return seg || null;
+}
+
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(parsePath);
   const { screenshotUrl, openScreenshot, closeScreenshot } = useScreenshot();
   const [responseText, setResponseText] = useState<string | null>(null);
   const [thinkingText, setThinkingText] = useState<string | null>(null);
@@ -26,6 +31,18 @@ export default function App() {
   useEffect(() => {
     fetchTasks().then(setTasks).catch(console.error);
   }, []);
+
+  // Sync URL ↔ detailTaskId
+  useEffect(() => {
+    const target = detailTaskId ? "/" + detailTaskId : "/";
+    if (window.location.pathname !== target) {
+      window.history.pushState(null, "", target);
+    }
+
+    const onPop = () => setDetailTaskId(parsePath());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [detailTaskId]);
 
   const handleWsMessage = useCallback((msg: WsMessage) => {
     const { type, data } = msg;
