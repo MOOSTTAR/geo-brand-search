@@ -183,9 +183,7 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
     }
     requestAnimationFrame(createBatch);
 
-    // Intro timing
-    const INTRO_DURATION = 2800; // ms
-    const introStart = performance.now();
+    const INTRO_DURATION = 2800;
     let introDone = false;
 
     // Mouse interaction
