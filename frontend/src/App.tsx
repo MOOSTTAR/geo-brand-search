@@ -36,12 +36,16 @@ export default function App() {
   const [splashDismissed, setSplashDismissed] = useState(hasPath);
   const showSplash = !hasPath && !splashDismissed;
 
-  // Scroll to dismiss splash
+  // Scroll or click to dismiss splash
   useEffect(() => {
     if (!showSplash) return;
-    const onWheel = () => setSplashDismissed(true);
-    window.addEventListener("wheel", onWheel, { once: true });
-    return () => window.removeEventListener("wheel", onWheel);
+    const dismiss = () => setSplashDismissed(true);
+    window.addEventListener("wheel", dismiss, { once: true });
+    window.addEventListener("click", dismiss, { once: true });
+    return () => {
+      window.removeEventListener("wheel", dismiss);
+      window.removeEventListener("click", dismiss);
+    };
   }, [showSplash]);
 
   useEffect(() => {
@@ -207,20 +211,25 @@ export default function App() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "flex-end",
-          paddingBottom: 60,
+          justifyContent: "center",
           pointerEvents: "none",
         }}>
+          {!introDone && (
+            <span style={{ fontSize: 13, color: "#9ca3af", letterSpacing: 2, animation: "fade-in 0.8s ease" }}>
+              LOADING
+            </span>
+          )}
           {introDone && (
             <div style={{
               animation: "fade-in 0.6s ease",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 8,
+              gap: 10,
+              marginTop: "55vh",
             }}>
               <span style={{ fontSize: 13, color: "#9ca3af", letterSpacing: 2 }}>
-                向下滚动
+                滚动或点击进入
               </span>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
                 <path d="M12 5v14M5 12l7 7 7-7" />
