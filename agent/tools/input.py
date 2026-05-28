@@ -735,8 +735,8 @@ async def _extract_sources(page) -> str:
                     const rawText = (a.textContent || '').trim();
 
                     // DeepSeek concatenates: [site_name][date][cite_number][title+snippet]
-                    // Parse with regex: non-greedy prefix, date YYYY/MM/DD or YYYY-MM-DD, optional cite number, rest
-                    const parseRe = /^(.+?)(\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})(\\d{1,2})?(.+)$/;
+                    // Parse with regex: non-greedy prefix, date YYYY/MM/DD, optional cite (1-2 digits NOT followed by another digit), rest
+                    const parseRe = /^(.+?)(\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2})(?:(\\d{1,2})(?!\\d))?(.+)$/;
                     const pm = rawText.match(parseRe);
 
                     let siteName = '', date = '', cite = '', title = '', snippet = '';
@@ -754,7 +754,7 @@ async def _extract_sources(page) -> str:
                             const di = rawText.indexOf(date);
                             siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
                             const after = rawText.substring(di + date.length);
-                            const cm = after.match(/^(\\d{1,2})\\s*/);
+                            const cm = after.match(/^(\\d{1,2})(?!\\d)/);
                             if (cm) {
                                 cite = cm[1];
                                 title = after.substring(cm[0].length).trim();
