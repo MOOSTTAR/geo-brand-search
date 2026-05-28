@@ -1,18 +1,12 @@
 import { useState, type FormEvent } from "react";
 
-interface Platform {
-  key: string;
-  label: string;
-  logo: string;
-}
-
 interface Props {
   onSubmit: (query: string, brandKeyword: string, platforms: string[]) => Promise<void>;
   disabled?: boolean;
 }
 
-const AVAILABLE_PLATFORMS: Platform[] = [
-  { key: "deepseek", label: "DeepSeek", logo: "" },
+const AVAILABLE_PLATFORMS = [
+  { key: "deepseek", label: "DeepSeek", icon: "https://www.deepseek.com/favicon.ico" },
 ];
 
 const inputBase: React.CSSProperties = {
@@ -174,14 +168,14 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
                       cursor: "pointer",
                       transition: "all var(--transition)",
                       boxShadow: selected ? "0 0 0 4px rgba(91,94,247,0.1)" : "var(--shadow-sm)",
+                      overflow: "hidden",
                     }}
                   >
-                    {/* DeepSeek logo SVG */}
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="32" height="32" rx="8" fill="#4d6bfe"/>
-                      <path d="M6 12.5C6 10.2 7.8 8.4 10 8.5L16 8.5L22 8.5C24.2 8.4 26 10.2 26 12.5L26 20C26 22.3 24.2 24.1 22 24L16 24L10 24C7.8 24.1 6 22.3 6 20Z" fill="#fff" opacity="0.2"/>
-                      <text x="16" y="21" textAnchor="middle" fontSize="14" fontWeight="700" fill="#fff" fontFamily="sans-serif">D</text>
-                    </svg>
+                    <img
+                      src={p.icon}
+                      alt={p.label}
+                      style={{ width: 36, height: 36, borderRadius: 6 }}
+                    />
                   </button>
                   <span style={{
                     fontSize: 12,
