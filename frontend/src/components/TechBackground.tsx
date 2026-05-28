@@ -169,16 +169,16 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
       });
     }
 
-    // Create sprites in batches to avoid blocking first render
-    let batchIdx = 0;
-    const BATCH = 30;
+    // Create sprites in chunks — allow paint between batches
     let introStart = 0;
+    const totalItems = allTargets.length;
+    const CHUNK = 120;
+    let idx = 0;
 
-    function createBatch() {
-      const end = Math.min(batchIdx + BATCH, allTargets.length);
-      for (let i = batchIdx; i < end; i++) {
+    function createChunk() {
+      const end = Math.min(idx + CHUNK, totalItems);
+      for (let i = idx; i < end; i++) {
         const { pt, ld, word } = allTargets[i];
-
         let color: string, glow: string;
         if (ld) {
           const t = (pt.y + letterH / 2) / letterH;
@@ -190,7 +190,6 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
           glow = "rgba(148,163,184,0.2)";
         }
         const sprite = createWordSprite(word, color, glow);
-
         let ex: number, ey: number;
         if (ld) {
           const li = LETTERS.indexOf(ld);
@@ -206,7 +205,6 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
         const sx = Math.sin(phi2) * Math.cos(theta2) * spreadRadius;
         const sy = Math.sin(phi2) * Math.sin(theta2) * spreadRadius;
         const sz = Math.cos(phi2) * spreadRadius;
-
         const data: SpriteData = {
           start: new THREE.Vector3(sx, sy, sz),
           end: new THREE.Vector3(ex, ey, ez),
@@ -215,14 +213,15 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
         sprites.push({ s: sprite, d: data });
         group.add(sprite);
       }
-      batchIdx = end;
-      if (batchIdx < allTargets.length) {
-        requestAnimationFrame(createBatch);
+      idx = end;
+      renderer.render(scene, camera);
+      if (idx < totalItems) {
+        setTimeout(createChunk, 0);
       } else {
         introStart = performance.now();
       }
     }
-    requestAnimationFrame(createBatch);
+    createChunk();
 
     const INTRO_DURATION = 2800;
     let introDone = false;
