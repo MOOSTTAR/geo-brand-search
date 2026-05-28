@@ -177,21 +177,7 @@ export default function App() {
   return (
     <Layout wsConnected={isConnected} activeTab={activeTab} onTabChange={handleTabChange}>
       {activeTab === "search" && (
-        <>
-          <SearchInput onSubmit={handleSubmit} disabled={submitting} />
-          {tasks.length > 0 && (
-            <div style={{ marginTop: 32 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: "#666", marginBottom: 12 }}>
-                最近任务
-              </h3>
-              <TaskList
-                tasks={tasks.slice(0, 5)}
-                onViewDetail={handleViewDetail}
-                onDelete={handleDelete}
-              />
-            </div>
-          )}
-        </>
+        <SearchInput onSubmit={handleSubmit} disabled={submitting} />
       )}
 
       {activeTab === "tasks" && (

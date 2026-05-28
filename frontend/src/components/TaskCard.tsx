@@ -97,22 +97,6 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
         </div>
       )}
 
-      {task.status === "completed" && task.brand_rank && (
-        <div style={{
-          fontSize: 12,
-          color: "var(--color-primary)",
-          marginBottom: 8,
-          padding: "6px 10px",
-          backgroundColor: "var(--color-primary-light)",
-          borderRadius: "var(--radius-sm)",
-          lineHeight: 1.7,
-          whiteSpace: "pre-line",
-          fontWeight: 500,
-        }}>
-          {task.brand_rank}
-        </div>
-      )}
-
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{timeStr}</span>
