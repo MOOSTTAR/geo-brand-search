@@ -28,7 +28,7 @@ const inputBase: React.CSSProperties = {
 export default function SearchInput({ onSubmit, disabled }: Props) {
   const [query, setQuery] = useState("");
   const [brandKeyword, setBrandKeyword] = useState("");
-  const [platforms, setPlatforms] = useState<string[]>(["deepseek"]);
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [focusQ, setFocusQ] = useState(false);
   const [focusB, setFocusB] = useState(false);
@@ -41,7 +41,7 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
 
   const allSelected = platforms.length === AVAILABLE_PLATFORMS.length;
   const toggleAll = () => {
-    setPlatforms(allSelected ? ["deepseek"] : AVAILABLE_PLATFORMS.map((p) => p.key));
+    setPlatforms(allSelected ? [] : AVAILABLE_PLATFORMS.map((p) => p.key));
   };
 
   const handleSubmit = async (e: FormEvent) => {
