@@ -106,6 +106,7 @@ function createWordSprite(word: string, color: string, glow: string): THREE.Spri
   });
   const sprite = new THREE.Sprite(material);
   sprite.scale.set(1.4, 0.35, 1);
+  sprite.userData = { originalX: 0, originalY: 0, originalZ: 0, jitterTimer: 0 };
   return sprite;
 }
 
@@ -158,6 +159,9 @@ export default function TechBackground() {
         const y = pt.y * scale;
         const z = (Math.random() - 0.5) * 0.5;
         sprite.position.set(x, y, z);
+        sprite.userData.originalX = x;
+        sprite.userData.originalY = y;
+        sprite.userData.originalZ = z;
         group.add(sprite);
       });
     });
@@ -217,6 +221,30 @@ export default function TechBackground() {
         group.rotation.x += velocity.x;
         velocity.x *= 0.95;
         velocity.y *= 0.95;
+      } else {
+        // Slowly return to front-facing
+        group.rotation.x += (0 - group.rotation.x) * 0.04;
+        group.rotation.y += (0 - group.rotation.y) * 0.04;
+      }
+
+      // Random jitter: shake a few sprites each frame
+      const now = performance.now();
+      const kids = group.children as THREE.Sprite[];
+      const jitterCount = Math.floor(kids.length * 0.03); // 3% of sprites
+      for (let j = 0; j < jitterCount; j++) {
+        const s = kids[Math.floor(Math.random() * kids.length)];
+        const ud = s.userData;
+        if (now - ud.jitterTimer > 200 + Math.random() * 400) {
+          ud.jitterTimer = now;
+          s.position.x = ud.originalX + (Math.random() - 0.5) * 0.12;
+          s.position.y = ud.originalY + (Math.random() - 0.5) * 0.12;
+          s.position.z = ud.originalZ + (Math.random() - 0.5) * 0.08;
+        } else if (now - ud.jitterTimer > 120) {
+          // Reset to original
+          s.position.x += (ud.originalX - s.position.x) * 0.3;
+          s.position.y += (ud.originalY - s.position.y) * 0.3;
+          s.position.z += (ud.originalZ - s.position.z) * 0.3;
+        }
       }
 
       renderer.render(scene, camera);
