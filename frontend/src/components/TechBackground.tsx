@@ -290,11 +290,12 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
         }
       }
 
-      // Scroll-driven: position lags, scale leads
+      // Scroll-driven: position, scale, tilt
       const sp = scrollRef.current;
       const sc = scaleRef.current;
       group.position.y = sp * 6;
       group.scale.setScalar(1 - sc * 0.25);
+      const tiltX = sp * 0.27;
 
       // Rotation logic (only after intro)
       if (introDone) {
@@ -306,7 +307,7 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
           velocity.x *= 0.95;
           velocity.y *= 0.95;
         } else {
-          group.rotation.x += (0 - group.rotation.x) * 0.04;
+          group.rotation.x += (tiltX - group.rotation.x) * 0.04;
           group.rotation.y += (0 - group.rotation.y) * 0.04;
         }
       }
