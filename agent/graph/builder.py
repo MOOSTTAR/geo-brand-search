@@ -1,4 +1,4 @@
-"""Build the LangGraph StateGraph for the DeepSeek search agent."""
+"""Build the LangGraph StateGraph for the AI chat search agent."""
 
 from langgraph.graph import StateGraph, START, END
 

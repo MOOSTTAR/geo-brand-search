@@ -26,6 +26,7 @@ class Task(Base):
     brand_keyword = Column(String(255), nullable=True)
     brand_rank = Column(String(255), nullable=True)
     sources_json = Column(Text, nullable=True)
+    platform_results = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(String(30), nullable=False,
                         default=lambda: datetime.now(timezone.utc).isoformat())

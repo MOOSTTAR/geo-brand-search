@@ -1,52 +1,13 @@
 import asyncio
-import json
 from typing import Any
 
 from agent.tools.base import BaseTool
 from agent.harness.context import AgentContext
-from agent.harness.errors import ElementNotFoundError, TimeoutExceededError
+from agent.platforms import get_platform
+from agent.platforms.base import Platform
 from agent.harness.logger import get_logger
 
 logger = get_logger(__name__)
-
-# Chat input selectors — if any of these are visible, user is logged in
-INPUT_SELECTORS = [
-    "textarea",
-    "[role='textbox']",
-    "[contenteditable='true']",
-    "#chat-input",
-    ".chat-input textarea",
-    "[class*='chat'] textarea",
-    "[class*='input'] textarea",
-    "[class*='message'] textarea",
-    "[class*='editor'] textarea",
-    "[class*='editor'] [contenteditable]",
-    "textarea[placeholder]",
-]
-
-# Login page indicators
-LOGIN_PAGE_SELECTORS = [
-    "text=登录",
-    "text=手机号",
-    "text=微信登录",
-    "text=扫码",
-    "[class*='login']",
-    "[class*='Login']",
-    "input[type='tel']",
-    "input[placeholder*='手机']",
-    "input[placeholder*='邮箱']",
-    "canvas[class*='qr']",
-    "[class*='qrcode']",
-]
-
-SUBMIT_SELECTORS = [
-    "button[aria-label*='发送']",
-    "button[type='submit']",
-    "[class*='send']",
-    "[class*='submit']",
-    "button:has(svg)",
-    "button.send-btn",
-]
 
 
 class InputTool(BaseTool):
@@ -57,22 +18,24 @@ class InputTool(BaseTool):
         if not ctx.page:
             return {"success": False, "error": "No page available"}
 
+        platform_key = params.get("platform", "deepseek")
+        platform = get_platform(platform_key)
         action = params.get("action", "type_and_submit")
 
         if action == "type_and_submit":
-            return await self._type_and_submit(ctx, params)
+            return await self._type_and_submit(ctx, params, platform)
         elif action == "wait_for_response":
             return await self._wait_for_response(ctx)
         elif action == "extract_response":
-            return await self._extract_response(ctx)
+            return await self._extract_response(ctx, platform)
         elif action == "wait_for_login":
-            return await self._wait_for_login(ctx)
+            return await self._wait_for_login(ctx, platform)
         else:
             return {"success": False, "error": f"Unknown input action: {action}"}
 
-    async def _check_login_status(self, page) -> tuple[bool, bool]:
+    async def _check_login_status(self, page, platform: Platform) -> tuple[bool, bool]:
         """Returns (is_logged_in, is_login_page)."""
-        for selector in INPUT_SELECTORS:
+        for selector in platform.input_selectors:
             try:
                 el = await page.query_selector(selector)
                 if el and await el.is_visible():
@@ -80,7 +43,7 @@ class InputTool(BaseTool):
             except Exception:
                 continue
 
-        for selector in LOGIN_PAGE_SELECTORS:
+        for selector in platform.login_indicators:
             try:
                 el = await page.query_selector(selector)
                 if el and await el.is_visible():
@@ -90,74 +53,13 @@ class InputTool(BaseTool):
 
         return False, False
 
-    async def _enable_deep_think(self, page) -> bool:
-        """Ensure '深度思考' toggle is enabled.
-        Finds the toggle button by text content and small size (not chat-area labels).
-        """
-        try:
-            result = await page.evaluate("""
-                () => {
-                    const btns = document.querySelectorAll('[role="button"]');
-                    for (const btn of btns) {
-                        const text = (btn.textContent || '').trim();
-                        if (!text.includes('深度思考')) continue;
-                        const r = btn.getBoundingClientRect();
-                        // Toggle button is small, skip large containers
-                        if (r.width > 200 || r.height > 60) continue;
-                        const pressed = btn.getAttribute('aria-pressed');
-                        const cls = String(btn.className || '');
-                        const isSelected = pressed === 'true' || cls.includes('--selected');
-                        return {
-                            found: true,
-                            selected: isSelected,
-                            x: Math.round(r.left + r.width / 2),
-                            y: Math.round(r.top + r.height / 2),
-                        };
-                    }
-                    return {found: false};
-                }
-            """)
-
-            if not result.get("found"):
-                logger.info("Deep Think toggle not found on page")
-                return False
-
-            if result["selected"]:
-                logger.info("Deep Think already enabled")
-                return True
-
-            logger.info(f"Enabling Deep Think at ({result['x']},{result['y']})")
-            await page.mouse.click(result["x"], result["y"])
-            await asyncio.sleep(0.5)
-
-            # Verify it's now enabled
-            verify = await page.evaluate("""
-                () => {
-                    const btns = document.querySelectorAll('[role="button"]');
-                    for (const btn of btns) {
-                        const text = (btn.textContent || '').trim();
-                        if (text.includes('深度思考')) {
-                            const pressed = btn.getAttribute('aria-pressed');
-                            const cls = String(btn.className || '');
-                            return pressed === 'true' || cls.includes('--selected');
-                        }
-                    }
-                    return false;
-                }
-            """)
-            logger.info(f"Deep Think enabled: {verify}")
-            return verify
-        except Exception as e:
-            logger.warning(f"Failed to enable Deep Think: {e}")
-            return False
-
-    async def _wait_for_login(self, ctx: AgentContext) -> dict[str, Any]:
+    async def _wait_for_login(self, ctx: AgentContext, platform: Platform) -> dict[str, Any]:
         page = ctx.page
-        logger.info("Waiting for user to log in to DeepSeek...")
+        logger.info(f"Waiting for user to log in to {platform.name}...")
 
         print("", flush=True)
         print("=" * 60, flush=True)
-        print("  请在浏览器中登录 DeepSeek 账号", flush=True)
+        print(f"  请在浏览器中登录 {platform.name} 账号", flush=True)
         print("  登录完成后 Agent 将自动继续...", flush=True)
         print("=" * 60, flush=True)
 
@@ -167,7 +69,7 @@ class InputTool(BaseTool):
         last_status = None
 
         while True:
-            is_logged_in, is_login_page = await self._check_login_status(page)
+            is_logged_in, is_login_page = await self._check_login_status(page, platform)
 
             if is_logged_in:
                 logger.info(f"Login detected! Chat input found after {waited}s")
@@ -190,7 +92,7 @@ class InputTool(BaseTool):
             await asyncio.sleep(poll_interval)
             waited += poll_interval
 
-    async def _type_and_submit(self, ctx: AgentContext, params: dict[str, Any]) -> dict[str, Any]:
+    async def _type_and_submit(self, ctx: AgentContext, params: dict[str, Any], platform: Platform) -> dict[str, Any]:
         text = params.get("text", "")
         if not text:
             return {"success": False, "error": "No text to input"}
@@ -200,18 +102,16 @@ class InputTool(BaseTool):
         # Small delay for page to settle after login
         await asyncio.sleep(1)
 
-        # Step 0: Enable Deep Think before typing
-        await self._enable_deep_think(page)
+        # Platform-specific pre-submit hook (e.g. DeepSeek "深度思考" toggle)
+        await platform.pre_submit(page)
 
-        # Try to find input field
+        # Try to find input field using platform selectors
         input_el = None
-        found_selector = None
-        for selector in INPUT_SELECTORS:
+        for selector in platform.input_selectors:
             try:
                 el = await page.wait_for_selector(selector, timeout=5000)
                 if el and await el.is_visible():
                     input_el = el
-                    found_selector = selector
                     logger.info(f"Found input with selector: {selector}")
                     break
             except Exception:
@@ -244,7 +144,7 @@ class InputTool(BaseTool):
             except Exception as e2:
                 return {"success": False, "error": f"Failed to type text: {e2}"}
 
-        # Submit via page.keyboard.press Enter (DeepSeek listens at page level)
+        # Submit via page.keyboard.press Enter
         submitted = False
         try:
             await page.keyboard.press("Enter")
@@ -296,12 +196,9 @@ class InputTool(BaseTool):
         return {"success": True, "message": "Text submitted"}
 
     async def _wait_for_response(self, ctx: AgentContext) -> dict[str, Any]:
-        """Wait for DeepSeek response to complete, then extract response text.
+        """Wait for AI response to complete, then return.
 
-        Uses document.body.innerText (visible rendered text only) to track growth.
-        Captures baseline at start, requires meaningful growth beyond baseline,
-        then waits for text to stabilize for 6 consecutive polls with no loading indicators.
-        After completion, extracts the assistant's response text.
+        Uses document.body.innerText to track text growth.
         """
         page = ctx.page
         max_wait = 180
@@ -310,7 +207,7 @@ class InputTool(BaseTool):
         min_elapsed = 15
         min_growth = 80
 
-        logger.info("Waiting for DeepSeek response to complete...")
+        logger.info("Waiting for AI response to complete...")
 
         await asyncio.sleep(2)
 
@@ -413,446 +310,29 @@ class InputTool(BaseTool):
         logger.info(f"Wait timeout ({max_wait}s), peak growth={peak_len - baseline_len} chars")
         return {"success": True, "message": "Wait timeout reached, proceeding anyway"}
 
-
-    async def _extract_response(self, ctx: AgentContext) -> dict[str, Any]:
-        """Scroll page, expand panels, extract thinking + answer + sources."""
+    async def _extract_response(self, ctx: AgentContext, platform: Platform) -> dict[str, Any]:
+        """Delegate response extraction to the platform implementation."""
         page = ctx.page
-        await _scroll_full_page(page)
-        await _expand_thinking_panel(page)
-        await asyncio.sleep(0.5)
 
-        thinking_text, answer_text, answer_html = await _extract_response_parts(page)
+        # Extract response parts via platform
+        extracted = await platform.extract_response(page)
 
-        # Extract sources from source panel
-        sources_json = await _extract_sources(page)
+        # Extract sources via platform
+        sources_json = await platform.extract_sources(page)
 
-        # Combine for backwards compatibility
+        # Combine thinking + answer for backwards-compatible response_text
         parts = []
-        if thinking_text:
-            parts.append(thinking_text)
-        if answer_text:
-            parts.append(answer_text)
+        if extracted.get("thinking_text"):
+            parts.append(extracted["thinking_text"])
+        if extracted.get("answer_text"):
+            parts.append(extracted["answer_text"])
         full_text = "\n\n".join(parts)
 
         return {
             "success": True,
             "response_text": full_text,
-            "thinking_text": thinking_text,
-            "answer_text": answer_text,
-            "answer_html": answer_html,
+            "thinking_text": extracted.get("thinking_text", ""),
+            "answer_text": extracted.get("answer_text", ""),
+            "answer_html": extracted.get("answer_html", ""),
             "sources_json": sources_json,
         }
-
-
-async def _scroll_full_page(page) -> None:
-    """Scroll through the entire page to trigger lazy rendering of all content."""
-    try:
-        await page.evaluate("""
-            async () => {
-                const scrollStep = window.innerHeight * 0.7;
-                const delay = ms => new Promise(r => setTimeout(r, ms));
-                const totalHeight = Math.max(
-                    document.body.scrollHeight,
-                    document.documentElement.scrollHeight
-                );
-                for (let y = 0; y < totalHeight; y += scrollStep) {
-                    window.scrollTo(0, y);
-                    await delay(150);
-                }
-                // Scroll back to top
-                window.scrollTo(0, 0);
-                await delay(300);
-            }
-        """)
-        logger.info("Scrolled through full page for text extraction")
-    except Exception as e:
-        logger.warning(f"Scroll full page failed: {e}")
-
-
-async def _expand_thinking_panel(page) -> None:
-    """Expand DeepSeek's '已思考' / thinking panel if collapsed."""
-    try:
-        expanded = await page.evaluate("""
-            () => {
-                // DeepSeek thinking toggle — look for elements containing '已思考' or '思考过程'
-                const all = document.querySelectorAll('[class*="thinking"], [class*="reasoning"], ' +
-                    '[class*="expand"], [class*="collapse"], [class*="toggle"], ' +
-                    'details, summary, [aria-expanded]');
-                for (const el of all) {
-                    const text = (el.textContent || '').trim();
-                    if (text.includes('已思考') || text.includes('思考') || text.includes('用时')) {
-                        // Click to expand if it's a toggle/button
-                        if (el.tagName === 'SUMMARY' || el.tagName === 'BUTTON' ||
-                            el.getAttribute('aria-expanded') === 'false' ||
-                            el.getAttribute('role') === 'button') {
-                            el.click();
-                            return 'clicked: ' + text.substring(0, 30);
-                        }
-                        // Try clicking parent
-                        const parent = el.closest('summary, button, [role="button"], [aria-expanded]');
-                        if (parent) {
-                            parent.click();
-                            return 'clicked parent: ' + text.substring(0, 30);
-                        }
-                    }
-                }
-                // Fallback: click any element whose textContent starts with '已思考'
-                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
-                let node;
-                while (node = walker.nextNode()) {
-                    if (node.children.length === 0 && node.textContent &&
-                        node.textContent.trim().startsWith('已思考')) {
-                        const clickable = node.closest('[role="button"], button, summary, [aria-expanded]') || node;
-                        clickable.click();
-                        return 'fallback click: ' + node.textContent.trim().substring(0, 30);
-                    }
-                }
-                return 'not found';
-            }
-        """)
-        logger.info(f"Expand thinking panel: {expanded}")
-    except Exception as e:
-        logger.warning(f"Failed to expand thinking panel: {e}")
-
-
-async def _extract_response_parts(page) -> tuple[str, str, str]:
-    """Extract thinking text and answer text from DeepSeek's DOM.
-
-    DeepSeek's DOM structure:
-      - Thinking section: element with style "--collapsible-area-title-height"
-      - Answer section:  element with class "ds-markdown"
-    """
-    try:
-        result = await page.evaluate("""
-            () => {
-                // --- Answer: last .ds-markdown.ds-assistant-message-main-content ---
-                let answerText = '';
-                let answerHtml = '';
-                const allMarkdown = document.querySelectorAll('.ds-markdown.ds-assistant-message-main-content');
-                const markdownEl = allMarkdown.length > 0 ? allMarkdown[allMarkdown.length - 1] : null;
-                if (markdownEl) {
-                    const clone = markdownEl.cloneNode(true);
-
-                    // Remove code block banners (copy/download/run buttons)
-                    const banners = clone.querySelectorAll('.md-code-block-banner-wrap');
-                    banners.forEach(b => b.remove());
-
-                    // Remove citation elements
-                    const removals = clone.querySelectorAll(
-                        'sup, sub, ' +
-                        '[class*="reference"], [class*="citation"], [class*="source"], ' +
-                        'svg, ._9bc997d, .ds-focus-ring'
-                    );
-                    removals.forEach(el => el.remove());
-
-                    // Clean span wrappers: unwrap spans with no class or empty class
-                    const spans = clone.querySelectorAll('span');
-                    spans.forEach(s => {
-                        const cls = s.className || '';
-                        if (typeof cls !== 'string' || cls.trim() === '') {
-                            // Plain span — replace with its children
-                            while (s.firstChild) {
-                                s.parentNode.insertBefore(s.firstChild, s);
-                            }
-                            s.remove();
-                        }
-                    });
-
-                    answerHtml = clone.innerHTML.trim();
-                    // Also get plain text for backwards compatibility
-                    answerText = (clone.textContent || '').trim();
-                    answerText = answerText.replace(/reference\\s*:\\s*\\d+/gi, '');
-                    answerText = answerText.replace(/\\s*-\\s*$/gm, '');
-                    answerText = answerText.replace(/\\n{3,}/g, '\\n\\n');
-                }
-
-                // --- Thinking: element with --collapsible-area-title-height ---
-                let thinkingText = '';
-                const all = document.querySelectorAll('[style*="--collapsible-area-title-height"]');
-                for (const el of all) {
-                    const text = (el.textContent || '').trim();
-                    if (text.includes('已思考') || text.includes('用时')) {
-                        thinkingText = text;
-                        break;
-                    }
-                }
-
-                return { thinking: thinkingText, answer: answerText, answerHtml: answerHtml };
-            }
-        """)
-
-        thinking = (result.get("thinking") or "").strip() if result else ""
-        answer = (result.get("answer") or "").strip() if result else ""
-        answer_html = (result.get("answerHtml") or "").strip() if result else ""
-
-        logger.info(f"Extracted thinking={len(thinking)} chars, answer={len(answer)} chars, html={len(answer_html)} chars")
-        return thinking, answer, answer_html
-
-    except Exception as e:
-        logger.warning(f"Failed to extract response parts: {e}")
-        return "", "", ""
-
-
-async def _extract_sources(page) -> str:
-    """Click source button, extract source list, close panel, return JSON string."""
-    try:
-        # 1. Count baseline links before clicking (to detect new ones after click)
-        baseline = await page.evaluate(
-            "() => document.querySelectorAll('a[href*=\"http\"]').length"
-        )
-
-        # 2. Find and click source button by text pattern
-        # The source button contains text like "73 个网页" or "N sources"
-        clicked = await page.evaluate("""
-            () => {
-                // Strategy 1: find element whose text matches "N个网页" or "N个来源"
-                const all = document.querySelectorAll('[class]');
-                for (const el of all) {
-                    const text = (el.textContent || '').trim();
-                    const m = text.match(/^(\\d+)\\s*(个网页|个来源|sources?|source)$/i);
-                    if (m && parseInt(m[1]) > 0) {
-                        // Found source button
-                        const rect = el.getBoundingClientRect();
-                        if (rect.width > 0 && rect.height > 0 && rect.width < 300) {
-                            el.click();
-                            return {method: 'text', text: text};
-                        }
-                    }
-                }
-                // Strategy 2: find element with class containing source-related keywords
-                const btns = document.querySelectorAll('[class*="source"], [class*="citation"], [class*="reference"]');
-                for (const el of btns) {
-                    const text = (el.textContent || '').trim();
-                    if (text.length > 0 && text.length < 30) {
-                        el.click();
-                        return {method: 'class', text: text};
-                    }
-                }
-                // Strategy 3: fallback to next sibling (old behavior)
-                const mds = document.querySelectorAll('.ds-markdown.ds-assistant-message-main-content');
-                if (mds.length > 0) {
-                    let sibling = mds[mds.length - 1].nextElementSibling;
-                    for (let i = 0; i < 5 && sibling; i++) {
-                        const text = (sibling.textContent || '').trim();
-                        if (/\\d+\\s*(个网页|个来源|sources?)/i.test(text)) {
-                            sibling.click();
-                            return {method: 'sibling-scan', text: text};
-                        }
-                        sibling = sibling.nextElementSibling;
-                    }
-                    // Last resort: just click the next sibling
-                    const next = mds[mds.length - 1].nextElementSibling;
-                    if (next) {
-                        next.click();
-                        return {method: 'fallback', text: (next.textContent||'').trim().substring(0, 60)};
-                    }
-                }
-                return false;
-            }
-        """)
-        if not clicked:
-            logger.info("No source button found, skipping source extraction")
-            return ""
-
-        # 3. Wait for source panel to open and populate
-        await asyncio.sleep(2.5)
-
-        # 4. Check if new links appeared (source panel opened)
-        after = await page.evaluate(
-            "() => document.querySelectorAll('a[href*=\"http\"]').length"
-        )
-        logger.info(f"Links before={baseline}, after={after}")
-
-        # 5. Extract source items from the opened panel
-        sources = await page.evaluate("""
-            () => {
-                const items = [];
-                const seen = new Set();
-
-                // Find the source panel — it's a right-side drawer
-                // DeepSeek renders it as a scroll-area, typically with class containing "fcd12e6e"
-                // or we can find it by looking for the panel that appeared after clicking
-                let panel = document.querySelector('.fcd12e6e');
-
-                // Fallback: find any right-side panel with many links (>5 external links)
-                if (!panel) {
-                    const candidates = document.querySelectorAll('[class*="drawer"], [class*="panel"], [class*="scroll"], [class*="overlay"], [class*="modal"]');
-                    for (const c of candidates) {
-                        const r = c.getBoundingClientRect();
-                        if (r.width > 200 && r.height > 300 && r.x > window.innerWidth * 0.5) {
-                            const links = c.querySelectorAll('a[href*="http"]');
-                            if (links.length >= 5) {
-                                panel = c;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // If no panel found, fall back to the source button's content
-                let searchRoot = panel || document.body;
-
-                const links = searchRoot.querySelectorAll('a[href*="http"]');
-                for (const a of links) {
-                    const href = a.getAttribute('href') || '';
-                    if (!href || href === '#' || seen.has(href)) continue;
-
-                    const rect = a.getBoundingClientRect();
-                    if (rect.width === 0 || rect.height === 0) continue;
-
-                    // Exclude links inside markdown content (these are citations)
-                    if (a.closest('.ds-markdown')) continue;
-
-                    // If searching whole body, require links to be on the right side
-                    if (!panel && rect.x < window.innerWidth * 0.5) continue;
-
-                    seen.add(href);
-
-                    // Find the card wrapper for this source item
-                    let card = a;
-                    for (let i = 0; i < 6; i++) {
-                        if (!card.parentElement || card.parentElement === searchRoot) break;
-                        const p = card.parentElement;
-                        const pRect = p.getBoundingClientRect();
-                        // Stop when we reach the panel-level container (too many children, too wide)
-                        if (p.children.length > 8 && pRect.width > 300) break;
-                        card = p;
-                    }
-
-                    // Logo: find img element (site icon)
-                    const imgs = card.querySelectorAll('img');
-                    let logo = '';
-                    for (const img of imgs) {
-                        const src = img.getAttribute('src') || '';
-                        if (!src) continue;
-                        const ir = img.getBoundingClientRect();
-                        if (ir.width > 10 && ir.width < 40) { logo = src; break; }
-                    }
-                    if (!logo && imgs.length > 0) {
-                        logo = imgs[0].getAttribute('src') || '';
-                    }
-
-                    const rawText = (a.textContent || '').trim();
-
-                    // DeepSeek concatenates: [site_name][date][cite_number][title]
-                    // Distinguish cite from year by checking structured patterns after the date.
-                    let siteName = '', date = '', cite = '', title = '', snippet = '';
-
-                    const dm = rawText.match(/\\d{4}[\\/-]\\d{1,2}[\\/-]\\d{1,2}/);
-                    if (dm) {
-                        date = dm[0];
-                        const di = dm.index;
-                        siteName = rawText.substring(0, di).replace(/^\\d{1,2}\\s*/, '').trim();
-                        const after = rawText.substring(di + date.length);
-
-                        // Ordered patterns for what follows the date:
-                        // 1) cite(1-2d) + year(4d)年  →  cite=7  title="2026年..."
-                        // 2) cite(1-2d) + year(4d)    →  cite=7  title="2026..." (no 年)
-                        // 3) year(4d)年               →  cite=""  title="2026年..."
-                        // 4) year(4d)                 →  cite=""  title="2026..."
-                        // 5) cite(1-2d) + non-digit   →  cite=7  title="安卓..."
-                        // 6) otherwise                →  cite=""  title="..."
-                        let cy = after.match(/^(\\d{1,2})(\\d{4}年)/);   // cite + year+年
-                        if (!cy) cy = after.match(/^(\\d{1,2})(\\d{4}(?!\\d))/); // cite + year no 年
-                        if (cy) {
-                            cite = cy[1];
-                            title = after.substring(cy[1].length).trim();
-                        } else if (/^\\d{4}年/.test(after)) {
-                            title = after.trim();
-                        } else if (/^\\d{4}(?!\\d)/.test(after)) {
-                            title = after.trim();
-                        } else {
-                            const cm = after.match(/^(\\d{1,2})(?=[^\\d]|$)/);
-                            if (cm) {
-                                cite = cm[1];
-                                title = after.substring(cm[1].length).trim();
-                            } else {
-                                title = after.trim();
-                            }
-                        }
-                    } else {
-                        title = rawText;
-                    }
-
-                    // Clean site name: remove leading cite number if still present
-                    siteName = siteName.replace(/^\\d{1,2}\\s*/, '').trim();
-                    // If site name is too long, it's part of the title
-                    if (siteName.length > 30) {
-                        title = siteName + ' ' + title;
-                        siteName = '';
-                    }
-
-                    // Get snippet from card text beyond what's in the link
-                    const cardText = (card.textContent || '').trim();
-                    if (cardText !== rawText && cardText.length > rawText.length) {
-                        snippet = cardText.substring(cardText.indexOf(rawText) + rawText.length).trim();
-                    }
-                    // If title itself is very long, split title / snippet
-                    if (!snippet && title.length > 80) {
-                        const breakPt = title.indexOf('。');
-                        if (breakPt > 15) {
-                            snippet = title.substring(breakPt + 1).trim();
-                            title = title.substring(0, breakPt + 1).trim();
-                        }
-                    }
-                    snippet = snippet.substring(0, 200);
-
-                    items.push({
-                        logo: logo,
-                        site_name: siteName,
-                        title: title,
-                        url: href,
-                        date: date,
-                        snippet: snippet,
-                        cite: cite,
-                    });
-
-                    if (items.length >= 200) break;
-                }
-
-                return items;
-            }
-        """)
-
-        # 6. Close source panel — click source button again
-        await page.evaluate("""
-            () => {
-                // Find source button by text pattern
-                const all = document.querySelectorAll('[class]');
-                for (const el of all) {
-                    const text = (el.textContent || '').trim();
-                    if (/^\\d+\\s*(个网页|个来源|sources?)$/i.test(text)) {
-                        el.click();
-                        return;
-                    }
-                }
-            }
-        """)
-        await asyncio.sleep(0.5)
-
-        if not sources:
-            logger.info("No source items found in panel")
-            return ""
-
-        logger.info(f"Extracted {len(sources)} source items")
-        return json.dumps(sources, ensure_ascii=False)
-
-    except Exception as e:
-        logger.warning(f"Source extraction failed: {e}")
-        # Try to close panel even on error
-        try:
-            await page.evaluate("""
-                () => {
-                    const all = document.querySelectorAll('[class]');
-                    for (const el of all) {
-                        const text = (el.textContent || '').trim();
-                        if (/^\\d+\\s*(个网页|个来源|sources?)$/i.test(text)) {
-                            el.click();
-                            return;
-                        }
-                    }
-                }
-            """)
-        except Exception:
-            pass
-        return ""

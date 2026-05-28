@@ -11,10 +11,28 @@ interface SourceItem {
   cite: string;
 }
 
+interface PlatformResult {
+  platform: string;
+  platform_name: string;
+  answer_text: string;
+  answer_html: string;
+  thinking_text: string;
+  sources_json: string;
+}
+
+const PLATFORM_INFO: Record<string, { label: string; icon: string }> = {
+  deepseek: { label: "DeepSeek", icon: "/platforms/deepseek.ico" },
+  doubao: { label: "豆包", icon: "/platforms/doubao.png" },
+  yuanbao: { label: "元宝", icon: "/platforms/yuanbao.ico" },
+  qwen: { label: "千问", icon: "/platforms/qwen.svg" },
+  yiyan: { label: "文心一言", icon: "/platforms/yiyan.ico" },
+  kimi: { label: "Kimi", icon: "/platforms/kimi.ico" },
+};
+
 interface Props {
   task: Task;
   onViewScreenshot: (taskId: string) => void;
-  onViewResponse: (taskId: string) => void;
+  onViewResponse: (taskId: string, platformKey?: string) => void;
   onViewRanking: (taskId: string) => void;
   onBack: () => void;
 }
@@ -44,10 +62,26 @@ function parseSources(json: string | null): SourceItem[] {
   }
 }
 
+function parsePlatformResults(json: string | null): PlatformResult[] {
+  if (!json) return [];
+  try {
+    return JSON.parse(json);
+  } catch {
+    return [];
+  }
+}
+
 export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onViewRanking, onBack }: Props) {
   const duration = calcDuration(task.created_at, task.completed_at);
   const timeStr = new Date(task.created_at).toLocaleString("zh-CN");
-  const sources = parseSources(task.sources_json);
+  const platformResults = parsePlatformResults(task.platform_results);
+  const [activePlatform, setActivePlatform] = useState<string>("all");
+
+  // Filter sources by active platform
+  const allSources = parseSources(task.sources_json);
+  const sources = activePlatform === "all"
+    ? allSources
+    : allSources.filter((s) => (s as SourceItem & { platform?: string }).platform === activePlatform);
   const [page, setPage] = useState(0);
 
   const totalPages = Math.ceil(sources.length / PAGE_SIZE);
@@ -129,10 +163,37 @@ export default function TaskDetail({ task, onViewScreenshot, onViewResponse, onV
           {duration && <span>用时 {duration}</span>}
         </div>
 
+        {/* Platform tabs */}
+        {platformResults.length > 1 && (
+          <div style={{ display: "flex", gap: 6, marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f0f0", flexWrap: "wrap" }}>
+            <button
+              onClick={() => { setActivePlatform("all"); setPage(0); }}
+              style={platformTabStyle(activePlatform === "all")}
+            >
+              全部
+            </button>
+            {platformResults.map((pr) => {
+              const info = PLATFORM_INFO[pr.platform];
+              return (
+                <button
+                  key={pr.platform}
+                  onClick={() => { setActivePlatform(pr.platform); setPage(0); }}
+                  style={platformTabStyle(activePlatform === pr.platform)}
+                >
+                  {info && (
+                    <img src={info.icon} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: "contain" }} />
+                  )}
+                  {pr.platform_name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f0f0" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: platformResults.length > 1 ? 12 : 16, paddingTop: platformResults.length > 1 ? 0 : 16, borderTop: platformResults.length > 1 ? "none" : "1px solid #f0f0f0" }}>
           {task.response_text && (
-            <button onClick={() => onViewResponse(task.id)} style={detailBtnStyle("#52c41a")}>
+            <button onClick={() => onViewResponse(task.id, activePlatform === "all" ? undefined : activePlatform)} style={detailBtnStyle("#52c41a")}>
               查看回复
             </button>
           )}
@@ -293,6 +354,24 @@ function detailBtnStyle(color: string): React.CSSProperties {
     borderRadius: 20,
     cursor: "pointer",
     transition: "all var(--transition)",
+  };
+}
+
+function platformTabStyle(active: boolean): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "5px 14px",
+    fontSize: 12,
+    fontWeight: active ? 600 : 400,
+    color: active ? "#fff" : "var(--color-text-secondary)",
+    backgroundColor: active ? "var(--color-primary)" : "var(--color-surface)",
+    border: `1.5px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
+    borderRadius: 16,
+    cursor: "pointer",
+    transition: "all var(--transition)",
+    whiteSpace: "nowrap",
   };
 }
 

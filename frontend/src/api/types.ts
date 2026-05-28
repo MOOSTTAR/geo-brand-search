@@ -13,6 +13,7 @@ export interface Task {
   brand_keyword: string | null;
   brand_rank: string | null;
   sources_json: string | null;
+  platform_results: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -41,6 +42,7 @@ export interface WsMessage {
     brand_keyword?: string | null;
     brand_rank?: string | null;
     sources_json?: string | null;
+    platform_results?: string | null;
     error?: string;
     created_at?: string;
     completed_at?: string;
@@ -51,11 +53,11 @@ export interface WsMessage {
 
 const API_BASE = "http://localhost:8000";
 
-export async function createTask(query: string, brandKeyword?: string): Promise<Task> {
+export async function createTask(query: string, brandKeyword?: string, platforms?: string[]): Promise<Task> {
   const res = await fetch(`${API_BASE}/api/tasks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, brand_keyword: brandKeyword || undefined }),
+    body: JSON.stringify({ query, brand_keyword: brandKeyword || undefined, platforms: platforms || undefined }),
   });
   if (!res.ok) throw new Error("Failed to create task");
   return res.json();

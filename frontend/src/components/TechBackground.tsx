@@ -32,7 +32,7 @@ const LETTERS: LetterDef[] = [
   { char: "O", colorTop: "#bfdbfe", colorBot: "#2563eb", glow: "rgba(59,130,246,0.45)" },
 ];
 
-interface SpriteData { start: THREE.Vector3; end: THREE.Vector3; }
+interface SpriteData { start: THREE.Vector3; end: THREE.Vector3; kind: "letter" | "shell"; }
 
 function sampleLetter(char: string, w: number, h: number): { x: number; y: number }[] {
   const canvas = document.createElement("canvas");
@@ -98,10 +98,11 @@ interface Props {
   intro: boolean;
   scrollProgress: number;
   scaleProgress: number;
+  cornerMode?: boolean;
   onIntroDone?: () => void;
 }
 
-export default function TechBackground({ visible, intro, scrollProgress, scaleProgress, onIntroDone }: Props) {
+export default function TechBackground({ visible, intro, scrollProgress, scaleProgress, cornerMode, onIntroDone }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
@@ -109,6 +110,8 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
   scrollRef.current = scrollProgress;
   const scaleRef = useRef(scaleProgress);
   scaleRef.current = scaleProgress;
+  const cornerRef = useRef(cornerMode);
+  cornerRef.current = cornerMode;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -149,9 +152,9 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
       });
     });
 
-    // Shell particles: hollow sphere wall around GEO
+    // Shell particles: hollow sphere wall around GEO (fade in, no fly-in)
     const shellColors = ["#e5e7eb", "#bae6fd", "#93c5fd", "#7dd3fc", "#cbd5e1", "#94a3b8"];
-    const shellCount = 300;
+    const shellCount = 200;
     const shellInner = 14, shellOuter = 18;
     const shellWords = [...shuffled].sort(() => Math.random() - 0.5);
     for (let i = 0; i < shellCount; i++) {
@@ -179,6 +182,7 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
       const end = Math.min(idx + CHUNK, totalItems);
       for (let i = idx; i < end; i++) {
         const { pt, ld, word } = allTargets[i];
+        const isShell = !ld;
         let color: string, glow: string;
         if (ld) {
           const t = (pt.y + letterH / 2) / letterH;
@@ -200,14 +204,29 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
           ey = pt.y * scale;
         }
         const ez = allTargets[i].ez ?? (Math.random() - 0.5) * 1.5;
-        const theta2 = Math.random() * Math.PI * 2;
-        const phi2 = Math.acos(2 * Math.random() - 1);
-        const sx = Math.sin(phi2) * Math.cos(theta2) * spreadRadius;
-        const sy = Math.sin(phi2) * Math.sin(theta2) * spreadRadius;
-        const sz = Math.cos(phi2) * spreadRadius;
+
+        let sx: number, sy: number, sz: number;
+        if (isShell) {
+          // Shell particles start slightly offset and drift gently into place
+          const offset = 3 + Math.random() * 4;
+          const theta2 = Math.random() * Math.PI * 2;
+          const phi2 = Math.acos(2 * Math.random() - 1);
+          sx = ex + Math.sin(phi2) * Math.cos(theta2) * offset;
+          sy = ey + Math.sin(phi2) * Math.sin(theta2) * offset;
+          sz = ez + Math.cos(phi2) * offset;
+          sprite.material.opacity = 0;
+        } else {
+          // Letter particles fly in from scattered positions
+          const theta2 = Math.random() * Math.PI * 2;
+          const phi2 = Math.acos(2 * Math.random() - 1);
+          sx = Math.sin(phi2) * Math.cos(theta2) * spreadRadius;
+          sy = Math.sin(phi2) * Math.sin(theta2) * spreadRadius;
+          sz = Math.cos(phi2) * spreadRadius;
+        }
         const data: SpriteData = {
           start: new THREE.Vector3(sx, sy, sz),
           end: new THREE.Vector3(ex, ey, ez),
+          kind: isShell ? "shell" : "letter",
         };
         sprite.position.copy(data.start);
         sprites.push({ s: sprite, d: data });
@@ -225,6 +244,7 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
 
     const INTRO_DURATION = 2800;
     let introDone = false;
+    let cornerTLerp = 0; // 0=top-center, 1=bottom-left corner
 
     // Mouse interaction
     let isDragging = false;
@@ -281,7 +301,18 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
         const eased = easeOutCubic(t);
 
         sprites.forEach(({ s, d }) => {
-          s.position.lerpVectors(d.start, d.end, eased);
+          if (d.kind === "letter") {
+            // Letter particles: fly from scattered positions to form GEO
+            s.position.lerpVectors(d.start, d.end, eased);
+          } else {
+            // Shell particles: drift in + fade in, starts after letters 40% formed
+            const shellStart = 0.4;
+            const shellEnd = 0.85;
+            const st = Math.max(0, Math.min(1, (t - shellStart) / (shellEnd - shellStart)));
+            const se = easeOutCubic(st);
+            s.position.lerpVectors(d.start, d.end, se);
+            s.material.opacity = 0.85 * se;
+          }
         });
 
         if (t >= 1 && !introDone) {
@@ -293,9 +324,27 @@ export default function TechBackground({ visible, intro, scrollProgress, scalePr
       // Scroll-driven: position, scale, tilt
       const sp = scrollRef.current;
       const sc = scaleRef.current;
-      group.position.y = sp * 6;
-      group.scale.setScalar(1 - sc * 0.25);
-      const tiltX = sp * 0.27;
+
+      // Corner mode: when true (tasks/profile tab), GEO moves to bottom-left
+      const targetCorner = cornerRef.current ? 1 : 0;
+      // Use a mutable variable for lerp (ref attached to closure via module-level)
+      cornerTLerp = cornerTLerp + (targetCorner - cornerTLerp) * 0.06;
+
+      // Interpolate between top-center and bottom-left
+      const topY = sp * 6;
+      const topScale = 1 - sc * 0.25;
+      const topTilt = sp * 0.27;
+
+      const cornerX = -8;
+      const cornerY = -4;
+      const cornerScale = 0.45;
+      const cornerTilt = 0.5;
+
+      const ct = cornerTLerp;
+      group.position.x = cornerX * ct;
+      group.position.y = topY + (cornerY - topY) * ct;
+      group.scale.setScalar(topScale + (cornerScale - topScale) * ct);
+      const tiltX = topTilt + (cornerTilt - topTilt) * ct;
 
       // Rotation logic (only after intro)
       if (introDone) {

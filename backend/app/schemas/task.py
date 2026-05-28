@@ -5,6 +5,7 @@ from typing import Optional
 class TaskCreateRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     brand_keyword: Optional[str] = None
+    platforms: Optional[list[str]] = None
 
 
 class TaskResponse(BaseModel):
@@ -22,6 +23,7 @@ class TaskResponse(BaseModel):
     brand_keyword: Optional[str] = None
     brand_rank: Optional[str] = None
     sources_json: Optional[str] = None
+    platform_results: Optional[str] = None
     error_message: Optional[str] = None
     created_at: str
     updated_at: str

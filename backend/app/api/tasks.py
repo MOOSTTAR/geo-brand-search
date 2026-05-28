@@ -33,7 +33,7 @@ async def create_task(req: TaskCreateRequest, db: AsyncSession = Depends(get_db)
         }
     })
 
-    asyncio.create_task(execute_task(task.id, req.query, brand_keyword=req.brand_keyword))
+    asyncio.create_task(execute_task(task.id, req.query, brand_keyword=req.brand_keyword, platforms=req.platforms))
 
     return TaskResponse.model_validate(task)
 

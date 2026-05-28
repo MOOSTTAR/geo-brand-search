@@ -5,6 +5,7 @@ class AgentGraphState(TypedDict, total=False):
     task_id: str
     query: str
     headless: bool
+    platform: str
     progress: int
     current_step: str
     screenshot_path: str | None

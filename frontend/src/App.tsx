@@ -105,7 +105,7 @@ export default function App() {
           current_step: null, screenshot_path: null, response_text: null,
           thinking_text: null, answer_text: null, answer_html: null,
           ranking_table: null, brand_keyword: data.brand_keyword ?? null,
-          brand_rank: null, sources_json: null, error_message: null,
+          brand_rank: null, sources_json: null, platform_results: null, error_message: null,
           created_at: data.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(), completed_at: null,
         };
@@ -129,6 +129,7 @@ export default function App() {
         task.brand_keyword = data.brand_keyword ?? null;
         task.brand_rank = data.brand_rank ?? null;
         task.sources_json = data.sources_json ?? null;
+        task.platform_results = data.platform_results ?? null;
         task.completed_at = data.completed_at ?? new Date().toISOString();
       } else if (type === "task_failed") {
         task.status = "failed";
@@ -147,7 +148,7 @@ export default function App() {
   const handleSubmit = useCallback(async (_query: string, _brandKeyword: string, _platforms: string[]) => {
     setSubmitting(true);
     try {
-      await createTask(_query, _brandKeyword || undefined);
+      await createTask(_query, _brandKeyword || undefined, _platforms);
       showToast("任务已创建", "success");
     } catch {
       showToast("创建任务失败", "error");
@@ -173,9 +174,25 @@ export default function App() {
 
   const detailTask = detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? null : null;
 
-  const handleViewResponse = useCallback((taskId: string) => {
+  const handleViewResponse = useCallback((taskId: string, platformKey?: string) => {
     const task = tasks.find((t) => t.id === taskId);
-    if (task?.response_text) {
+    if (!task) return;
+
+    if (platformKey && task.platform_results) {
+      try {
+        const pr = JSON.parse(task.platform_results);
+        const pdata = pr.find((p: { platform: string }) => p.platform === platformKey);
+        if (pdata) {
+          setResponseText([pdata.thinking_text, pdata.answer_text].filter(Boolean).join("\n\n") || null);
+          setThinkingText(pdata.thinking_text ?? null);
+          setAnswerText(pdata.answer_text ?? null);
+          setAnswerHtml(pdata.answer_html ?? null);
+          return;
+        }
+      } catch { /* fall through to combined */ }
+    }
+
+    if (task.response_text) {
       setResponseText(task.response_text);
       setThinkingText(task.thinking_text ?? null);
       setAnswerText(task.answer_text ?? null);
@@ -203,6 +220,7 @@ export default function App() {
         intro={!hasPath}
         scrollProgress={scrollProgress}
         scaleProgress={scaleProgress}
+        cornerMode={activeTab !== "search"}
         onIntroDone={() => setIntroDone(true)}
       />
 

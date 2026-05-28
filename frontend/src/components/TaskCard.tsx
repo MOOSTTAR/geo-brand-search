@@ -2,6 +2,24 @@ import type { Task } from "../api/types";
 import StatusBadge from "./StatusBadge";
 import ProgressBar from "./ProgressBar";
 
+const PLATFORM_INFO: Record<string, { label: string; icon: string }> = {
+  deepseek: { label: "DeepSeek", icon: "/platforms/deepseek.ico" },
+  doubao: { label: "豆包", icon: "/platforms/doubao.png" },
+  yuanbao: { label: "元宝", icon: "/platforms/yuanbao.ico" },
+  qwen: { label: "千问", icon: "/platforms/qwen.svg" },
+  yiyan: { label: "文心一言", icon: "/platforms/yiyan.ico" },
+  kimi: { label: "Kimi", icon: "/platforms/kimi.ico" },
+};
+
+function parsePlatformResults(json: string | null): { platform: string; platform_name: string }[] {
+  if (!json) return [];
+  try {
+    return JSON.parse(json);
+  } catch {
+    return [];
+  }
+}
+
 interface Props {
   task: Task;
   onViewDetail: (taskId: string) => void;
@@ -35,6 +53,7 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
     : "";
   const duration = calcDuration(task.created_at, task.completed_at);
   const accent = STATUS_ACCENT[task.status] ?? "#d1d5db";
+  const platforms = parsePlatformResults(task.platform_results);
 
   return (
     <div
@@ -104,6 +123,23 @@ export default function TaskCard({ task, onViewDetail, onDelete }: Props) {
             <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>
               用时 {duration}
             </span>
+          )}
+          {platforms.length > 0 && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {platforms.map((p) => {
+                const info = PLATFORM_INFO[p.platform];
+                if (!info) return null;
+                return (
+                  <img
+                    key={p.platform}
+                    src={info.icon}
+                    alt={info.label}
+                    title={info.label}
+                    style={{ width: 18, height: 18, borderRadius: 4, objectFit: "contain" }}
+                  />
+                );
+              })}
+            </div>
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>

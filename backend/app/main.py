@@ -13,6 +13,15 @@ from app.api.ws import router as ws_router
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Add new columns that may be missing in existing databases
+        try:
+            await conn.run_sync(
+                lambda sync_conn: sync_conn.exec_driver_sql(
+                    "ALTER TABLE tasks ADD COLUMN platform_results TEXT"
+                )
+            )
+        except Exception:
+            pass  # Column already exists
     yield
     await engine.dispose()
 

@@ -1,4 +1,4 @@
-"""LangGraph node factories for the DeepSeek search agent.
+"""LangGraph node factories for the AI chat search agent.
 
 Each factory returns an async function (state) -> partial state update.
 Nodes communicate progress via stdout JSON Lines (the emit protocol).
@@ -9,6 +9,7 @@ import json
 from agent.graph.state import AgentGraphState
 from agent.harness.tool_registry import ToolRegistry
 from agent.harness.context import AgentContext
+from agent.platforms import get_platform
 
 
 def emit(msg: dict) -> None:
@@ -67,11 +68,13 @@ def make_launch_node(registry: ToolRegistry, ctx: AgentContext):
 
 def make_navigate_node(registry: ToolRegistry, ctx: AgentContext):
     async def navigate_node(state: AgentGraphState) -> dict:
+        platform_key = state.get("platform", "deepseek")
+        platform = get_platform(platform_key)
         tool = registry.get_tool("navigate")
         return await _run_tool(
             tool, ctx,
-            {"url": "https://chat.deepseek.com"},
-            "navigate", "正在打开 DeepSeek 官网...", 5,
+            {"url": platform.url},
+            "navigate", f"正在打开 {platform.name} 官网...", 5,
         )
     return navigate_node
 
@@ -89,11 +92,13 @@ def make_wait_loaded_node(registry: ToolRegistry, ctx: AgentContext):
 
 def make_login_node(registry: ToolRegistry, ctx: AgentContext):
     async def login_node(state: AgentGraphState) -> dict:
+        platform_key = state.get("platform", "deepseek")
+        platform = get_platform(platform_key)
         tool = registry.get_tool("input")
         return await _run_tool(
             tool, ctx,
-            {"action": "wait_for_login"},
-            "login", "请在浏览器中登录 DeepSeek 账号，登录后自动继续...", 15,
+            {"action": "wait_for_login", "platform": platform_key},
+            "login", f"请在浏览器中登录 {platform.name} 账号，登录后自动继续...", 15,
         )
     return login_node
 
@@ -101,11 +106,12 @@ def make_login_node(registry: ToolRegistry, ctx: AgentContext):
 def make_input_node(registry: ToolRegistry, ctx: AgentContext):
     async def input_node(state: AgentGraphState) -> dict:
         query = state["query"]
+        platform_key = state.get("platform", "deepseek")
         short = f"{query[:50]}{'...' if len(query) > 50 else ''}"
         tool = registry.get_tool("input")
         return await _run_tool(
             tool, ctx,
-            {"action": "type_and_submit", "text": query},
+            {"action": "type_and_submit", "text": query, "platform": platform_key},
             "input", f"正在输入问题: {short}", 35,
         )
     return input_node
@@ -117,17 +123,18 @@ def make_wait_response_node(registry: ToolRegistry, ctx: AgentContext):
         return await _run_tool(
             tool, ctx,
             {"action": "wait_for_response"},
-            "wait", "正在等待 DeepSeek 回答生成...", 45,
+            "wait", "正在等待 AI 回答生成...", 45,
         )
     return wait_response_node
 
 
 def make_sidebar_node(registry: ToolRegistry, ctx: AgentContext):
     async def sidebar_node(state: AgentGraphState) -> dict:
+        platform_key = state.get("platform", "deepseek")
         tool = registry.get_tool("sidebar")
         return await _run_tool(
             tool, ctx,
-            {"action": "collapse"},
+            {"action": "collapse", "platform": platform_key},
             "sidebar", "正在收起侧边栏...", 75,
             allow_failure=True,
         )
@@ -142,7 +149,6 @@ def make_screenshot_node(registry: ToolRegistry, ctx: AgentContext):
             {"action": "fullpage"},
             "screenshot", "正在进行长截图...", 85,
         )
-        # Pass screenshot filename through so runner can use it
         screenshot_name = getattr(ctx, "screenshot_path", None)
         if screenshot_name:
             result["screenshot_path"] = screenshot_name
@@ -152,15 +158,17 @@ def make_screenshot_node(registry: ToolRegistry, ctx: AgentContext):
 
 def make_extract_node(registry: ToolRegistry, ctx: AgentContext):
     async def extract_node(state: AgentGraphState) -> dict:
+        platform_key = state.get("platform", "deepseek")
+        platform = get_platform(platform_key)
         emit({
             "type": "progress",
             "step": "extract",
-            "message": "正在提取回复内容...",
+            "message": f"正在提取{platform.name}回复内容...",
             "progress": 93,
         })
         tool = registry.get_tool("input")
         try:
-            result = await tool.execute(ctx, {"action": "extract_response"})
+            result = await tool.execute(ctx, {"action": "extract_response", "platform": platform_key})
         except Exception as exc:
             return {"error": str(exc), "current_step": "extract", "progress": 93}
 

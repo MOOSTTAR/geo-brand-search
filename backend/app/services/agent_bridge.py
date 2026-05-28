@@ -67,7 +67,7 @@ async def _run_subprocess(cmd: list[str], cwd: str, env: dict) -> tuple[list[str
     yield None, stderr_text, proc.returncode
 
 
-async def run_agent(task_id: str, query: str, brand_keyword: str | None = None) -> AsyncGenerator[dict[str, Any], None]:
+async def run_agent(task_id: str, query: str, brand_keyword: str | None = None, platforms: list[str] | None = None) -> AsyncGenerator[dict[str, Any], None]:
     """Run the agent as a subprocess and parse stdout JSON Lines."""
     import os
     env = os.environ.copy()
@@ -81,6 +81,8 @@ async def run_agent(task_id: str, query: str, brand_keyword: str | None = None) 
     ]
     if brand_keyword:
         cmd.extend(["--brand-keyword", brand_keyword])
+    if platforms:
+        cmd.extend(["--platforms", ",".join(platforms)])
 
     final_error: str | None = None
     stderr_text = ""
