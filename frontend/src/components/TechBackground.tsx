@@ -124,34 +124,47 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
 
     const group = new THREE.Group();
     const sprites: { s: THREE.Sprite; d: SpriteData }[] = [];
+    scene.add(group);
 
+    // Precompute target points
     const letterW = 200, letterH = 300, spacing = 240, scale = 0.03;
     const shuffled = [...KEYWORDS].sort(() => Math.random() - 0.5);
     const spreadRadius = 12;
+    const allTargets: { pt: { x: number; y: number }; ld: LetterDef; word: string }[] = [];
 
     LETTERS.forEach((ld, li) => {
       const pts = sampleLetter(ld.char, letterW, letterH);
-      const target = 220;
-      const thinRate = Math.max(1, Math.floor(pts.length / target));
+      const target2 = 220;
+      const thinRate = Math.max(1, Math.floor(pts.length / target2));
       const thinned = pts.filter((_, i) => i % thinRate === 0);
       const words = [...shuffled].sort(() => Math.random() - 0.5);
-
       thinned.forEach((pt, pi) => {
-        const word = words[pi % words.length];
+        allTargets.push({ pt, ld, word: words[pi % words.length] });
+      });
+    });
+
+    // Create sprites in batches to avoid blocking first render
+    let batchIdx = 0;
+    const BATCH = 30;
+    let introStart = 0;
+
+    function createBatch() {
+      const end = Math.min(batchIdx + BATCH, allTargets.length);
+      for (let i = batchIdx; i < end; i++) {
+        const { pt, ld, word } = allTargets[i];
         const t = (pt.y + letterH / 2) / letterH;
         const color = colorWithVariance(ld.colorTop, ld.colorBot, 1 - t);
         const sprite = createWordSprite(word, color, ld.glow);
 
+        const li = LETTERS.indexOf(ld);
         const ex = pt.x * scale + (li - 1) * spacing * scale;
         const ey = pt.y * scale;
         const ez = (Math.random() - 0.5) * 0.5;
-
-        // Random start position on a large sphere
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const sx = Math.sin(phi) * Math.cos(theta) * spreadRadius;
-        const sy = Math.sin(phi) * Math.sin(theta) * spreadRadius;
-        const sz = Math.cos(phi) * spreadRadius;
+        const theta2 = Math.random() * Math.PI * 2;
+        const phi2 = Math.acos(2 * Math.random() - 1);
+        const sx = Math.sin(phi2) * Math.cos(theta2) * spreadRadius;
+        const sy = Math.sin(phi2) * Math.sin(theta2) * spreadRadius;
+        const sz = Math.cos(phi2) * spreadRadius;
 
         const data: SpriteData = {
           start: new THREE.Vector3(sx, sy, sz),
@@ -160,10 +173,15 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
         sprite.position.copy(data.start);
         sprites.push({ s: sprite, d: data });
         group.add(sprite);
-      });
-    });
-
-    scene.add(group);
+      }
+      batchIdx = end;
+      if (batchIdx < allTargets.length) {
+        requestAnimationFrame(createBatch);
+      } else {
+        introStart = performance.now();
+      }
+    }
+    requestAnimationFrame(createBatch);
 
     // Intro timing
     const INTRO_DURATION = 2800; // ms
@@ -176,7 +194,7 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
     let velocity = { x: 0, y: 0 };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (!intro && !introDone) return; // no drag during intro
+      if (intro && !introDone) return;
       const tag = (e.target as HTMLElement).tagName;
       if (["BUTTON", "INPUT", "A", "SELECT", "TEXTAREA"].includes(tag)) return;
       if ((e.target as HTMLElement).closest("button, input, a, select, textarea")) return;
@@ -219,18 +237,19 @@ export default function TechBackground({ visible, intro, onIntroDone }: Props) {
       animId = requestAnimationFrame(animate);
       if (!visibleRef.current) return;
 
-      const elapsed = performance.now() - introStart;
-      const t = Math.min(elapsed / INTRO_DURATION, 1);
-      const eased = easeOutCubic(t);
+      if (introStart > 0) {
+        const elapsed = performance.now() - introStart;
+        const t = Math.min(elapsed / INTRO_DURATION, 1);
+        const eased = easeOutCubic(t);
 
-      // Animate particles toward target
-      sprites.forEach(({ s, d }) => {
-        s.position.lerpVectors(d.start, d.end, eased);
-      });
+        sprites.forEach(({ s, d }) => {
+          s.position.lerpVectors(d.start, d.end, eased);
+        });
 
-      if (t >= 1 && !introDone) {
-        introDone = true;
-        onIntroDone?.();
+        if (t >= 1 && !introDone) {
+          introDone = true;
+          onIntroDone?.();
+        }
       }
 
       // Rotation logic (only after intro)

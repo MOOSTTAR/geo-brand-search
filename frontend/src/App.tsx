@@ -214,11 +214,6 @@ export default function App() {
           justifyContent: "center",
           pointerEvents: "none",
         }}>
-          {!introDone && (
-            <span style={{ fontSize: 13, color: "#9ca3af", letterSpacing: 2, animation: "fade-in 0.8s ease" }}>
-              LOADING
-            </span>
-          )}
           {introDone && (
             <div style={{
               animation: "fade-in 0.6s ease",
