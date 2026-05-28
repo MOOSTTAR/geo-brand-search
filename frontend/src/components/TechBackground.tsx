@@ -52,7 +52,7 @@ function sampleLetter(char: string, w: number, h: number): { x: number; y: numbe
 
   const imageData = ctx.getImageData(0, 0, w, h);
   const points: { x: number; y: number }[] = [];
-  const step = 3; // sample every 3 pixels
+  const step = 5;
   for (let y = 0; y < h; y += step) {
     for (let x = 0; x < w; x += step) {
       const i = (y * w + x) * 4;
@@ -77,14 +77,14 @@ function lerpColor(hexA: string, hexB: string, t: number): string {
 
 function createWordSprite(word: string, color: string, glow: string): THREE.Sprite {
   const canvas = document.createElement("canvas");
-  const size = 256;
+  const size = 128;
   canvas.width = size;
   canvas.height = size / 4;
   const ctx = canvas.getContext("2d")!;
 
   ctx.shadowColor = glow;
-  ctx.shadowBlur = 10;
-  ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.shadowBlur = 6;
+  ctx.font = "bold 16px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -99,7 +99,7 @@ function createWordSprite(word: string, color: string, glow: string): THREE.Spri
     depthWrite: false,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(1.5, 0.38, 1);
+  sprite.scale.set(1.4, 0.35, 1);
   return sprite;
 }
 
@@ -124,20 +124,25 @@ export default function TechBackground() {
 
     const group = new THREE.Group();
 
-    // Bigger letter canvas for more detail
-    const letterW = 280;
-    const letterH = 400;
-    const spacing = 330;
-    const scale = 0.025;
+    const letterW = 200;
+    const letterH = 300;
+    const spacing = 240;
+    const scale = 0.03;
 
-    let wordIdx = 0;
+    // Shuffle once, use each word at most once per letter
+    const shuffled = [...KEYWORDS].sort(() => Math.random() - 0.5);
 
     LETTERS.forEach((ld, li) => {
       const pts = sampleLetter(ld.char, letterW, letterH);
+      // Thin to target ~300 sprites per letter
+      const target = 350;
+      const thinRate = Math.max(1, Math.floor(pts.length / target));
+      const thinned = pts.filter((_, i) => i % thinRate === 0);
+      // Shuffle so different words go to different positions
+      const words = [...shuffled].sort(() => Math.random() - 0.5);
 
-      pts.forEach((pt) => {
-        if (wordIdx >= KEYWORDS.length) wordIdx = 0;
-        const word = KEYWORDS[wordIdx++];
+      thinned.forEach((pt, pi) => {
+        const word = words[pi % words.length];
 
         const t = (pt.y + letterH / 2) / letterH;
         const color = lerpColor(ld.colorTop, ld.colorBot, 1 - t);
