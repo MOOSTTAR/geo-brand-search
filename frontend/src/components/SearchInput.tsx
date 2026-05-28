@@ -12,7 +12,7 @@ interface Props {
 }
 
 const AVAILABLE_PLATFORMS: Platform[] = [
-  { key: "deepseek", label: "DeepSeek", logo: "https://cdn.deepseek.com/site-icons/deepseek.com" },
+  { key: "deepseek", label: "DeepSeek", logo: "" },
 ];
 
 const inputBase: React.CSSProperties = {
@@ -153,44 +153,45 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
           <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500, marginBottom: 10, display: "block" }}>
             选择 AI 平台
           </span>
-          <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 20 }}>
             {AVAILABLE_PLATFORMS.map((p) => {
               const selected = platforms.includes(p.key);
               return (
-                <button
-                  key={p.key}
-                  type="button"
-                  onClick={() => togglePlatform(p.key)}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "16px 24px",
-                    backgroundColor: selected ? "var(--color-primary-light)" : "var(--color-surface)",
-                    border: selected ? "2px solid var(--color-primary)" : "2px solid var(--color-border)",
-                    borderRadius: "var(--radius-lg)",
-                    cursor: "pointer",
-                    transition: "all var(--transition)",
-                    boxShadow: selected ? "0 0 0 4px rgba(91,94,247,0.08)" : "var(--shadow-sm)",
-                  }}
-                >
-                  <img
-                    src={p.logo}
-                    alt={p.label}
-                    style={{ width: 36, height: 36, borderRadius: 8 }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
+                <div key={p.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => togglePlatform(p.key)}
+                    title={p.label}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: selected ? "var(--color-primary-light)" : "var(--color-surface)",
+                      border: selected ? "2px solid var(--color-primary)" : "2px solid var(--color-border)",
+                      borderRadius: 16,
+                      cursor: "pointer",
+                      transition: "all var(--transition)",
+                      boxShadow: selected ? "0 0 0 4px rgba(91,94,247,0.1)" : "var(--shadow-sm)",
                     }}
-                  />
+                  >
+                    {/* DeepSeek logo SVG */}
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="32" height="32" rx="8" fill="#4d6bfe"/>
+                      <path d="M6 12.5C6 10.2 7.8 8.4 10 8.5L16 8.5L22 8.5C24.2 8.4 26 10.2 26 12.5L26 20C26 22.3 24.2 24.1 22 24L16 24L10 24C7.8 24.1 6 22.3 6 20Z" fill="#fff" opacity="0.2"/>
+                      <text x="16" y="21" textAnchor="middle" fontSize="14" fontWeight="700" fill="#fff" fontFamily="sans-serif">D</text>
+                    </svg>
+                  </button>
                   <span style={{
                     fontSize: 12,
                     fontWeight: selected ? 600 : 400,
                     color: selected ? "var(--color-primary)" : "var(--color-text-secondary)",
+                    transition: "color var(--transition)",
                   }}>
                     {p.label}
                   </span>
-                </button>
+                </div>
               );
             })}
           </div>
