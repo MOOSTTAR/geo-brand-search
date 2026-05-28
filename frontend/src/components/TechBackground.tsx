@@ -44,7 +44,7 @@ function createWordSprite(word: string, color: string): THREE.Sprite {
     depthWrite: false,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(2.8, 0.7, 1);
+  sprite.scale.set(2.2, 0.55, 1);
   sprite.userData = { word };
   return sprite;
 }
@@ -78,7 +78,7 @@ export default function TechBackground() {
 
     // Create word sprites on a sphere
     const group = new THREE.Group();
-    const radius = 7;
+    const radius = 5;
     const colors = [
       "rgba(91,94,247,0.9)",  // primary
       "rgba(139,92,246,0.9)", // purple
@@ -103,6 +103,7 @@ export default function TechBackground() {
       sprite.position.set(x, y, z);
       group.add(sprite);
     });
+    group.position.y = 3;
     scene.add(group);
 
     // Stars / particles in background
@@ -180,12 +181,19 @@ export default function TechBackground() {
     const animate = () => {
       animId = requestAnimationFrame(animate);
 
-      // Inertia decay after drag release
-      if (!isDragging) {
+      // Auto-rotate when idle, drag when pressed
+      if (isDragging) {
+        // rotation applied during mousemove
+      } else if (Math.abs(velocity.x) > 0.0001 || Math.abs(velocity.y) > 0.0001) {
+        // Inertia decay after drag release
         group.rotation.y += velocity.y;
         group.rotation.x += velocity.x;
         velocity.x *= 0.95;
         velocity.y *= 0.95;
+      } else {
+        // Auto random rotation
+        group.rotation.y += 0.002;
+        group.rotation.x += 0.0005;
       }
 
       stars.rotation.y += 0.0003;
