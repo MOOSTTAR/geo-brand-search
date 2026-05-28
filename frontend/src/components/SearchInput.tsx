@@ -5,22 +5,13 @@ interface Props {
   disabled?: boolean;
 }
 
-const ICON_COLORS: Record<string, string> = {
-  deepseek: "#4d6bfe",
-  doubao: "#10b981",
-  yuanbao: "#f59e0b",
-  qwen: "#7c3aed",
-  yiyan: "#ef4444",
-  kimi: "#06b6d4",
-};
-
 const AVAILABLE_PLATFORMS = [
-  { key: "deepseek", label: "DeepSeek", icon: "https://www.deepseek.com/favicon.ico" },
-  { key: "doubao", label: "豆包", icon: "https://www.doubao.com/favicon.ico" },
-  { key: "yuanbao", label: "元宝", icon: "https://yuanbao.tencent.com/favicon.ico" },
-  { key: "qwen", label: "千问", icon: "https://tongyi.aliyun.com/favicon.ico" },
-  { key: "yiyan", label: "文心一言", icon: "https://yiyan.baidu.com/favicon.ico" },
-  { key: "kimi", label: "Kimi", icon: "https://kimi.moonshot.cn/favicon.ico" },
+  { key: "deepseek", label: "DeepSeek", icon: "/platforms/deepseek.ico" },
+  { key: "doubao", label: "豆包", icon: "/platforms/doubao.png" },
+  { key: "yuanbao", label: "元宝", icon: "/platforms/yuanbao.ico" },
+  { key: "qwen", label: "千问", icon: "/platforms/qwen.svg" },
+  { key: "yiyan", label: "文心一言", icon: "/platforms/yiyan.ico" },
+  { key: "kimi", label: "Kimi", icon: "/platforms/kimi.ico" },
 ];
 
 const inputBase: React.CSSProperties = {
@@ -197,29 +188,8 @@ export default function SearchInput({ onSubmit, disabled }: Props) {
                     <img
                       src={p.icon}
                       alt={p.label}
-                      style={{ width: 38, height: 38, borderRadius: 10 }}
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        img.style.display = "none";
-                        const fb = img.nextElementSibling as HTMLElement;
-                        if (fb) fb.style.display = "flex";
-                      }}
+                      style={{ width: 40, height: 40, borderRadius: 10, objectFit: "contain" }}
                     />
-                    <span style={{
-                      display: "none",
-                      width: 38,
-                      height: 38,
-                      borderRadius: 10,
-                      backgroundColor: (ICON_COLORS[p.key] ?? "#6b7280"),
-                      color: "#fff",
-                      fontSize: 17,
-                      fontWeight: 700,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: "system-ui, sans-serif",
-                    }}>
-                      {p.label.charAt(0)}
-                    </span>
                   </button>
                   <span style={{
                     fontSize: 12,
