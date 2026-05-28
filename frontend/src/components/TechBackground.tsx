@@ -29,7 +29,7 @@ function createWordSprite(word: string, color: string): THREE.Sprite {
   canvas.height = size / 4;
   const ctx = canvas.getContext("2d")!;
 
-  ctx.font = "bold 28px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -44,7 +44,7 @@ function createWordSprite(word: string, color: string): THREE.Sprite {
     depthWrite: false,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(4, 1, 1);
+  sprite.scale.set(2.8, 0.7, 1);
   sprite.userData = { word };
   return sprite;
 }
@@ -64,7 +64,7 @@ export default function TechBackground() {
 
     // Camera
     const camera = new THREE.PerspectiveCamera(60, width / height, 1, 100);
-    camera.position.z = 18;
+    camera.position.z = 14;
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -78,7 +78,7 @@ export default function TechBackground() {
 
     // Create word sprites on a sphere
     const group = new THREE.Group();
-    const radius = 12;
+    const radius = 7;
     const colors = [
       "rgba(91,94,247,0.9)",  // primary
       "rgba(139,92,246,0.9)", // purple
@@ -164,7 +164,7 @@ export default function TechBackground() {
       if (["BUTTON", "INPUT", "A", "SELECT", "TEXTAREA"].includes(tag)) return;
       e.preventDefault();
       camera.position.z += e.deltaY * 0.01;
-      camera.position.z = Math.max(8, Math.min(35, camera.position.z));
+      camera.position.z = Math.max(5, Math.min(30, camera.position.z));
     };
 
     const onResize = () => {
